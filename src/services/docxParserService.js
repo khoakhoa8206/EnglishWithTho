@@ -129,6 +129,27 @@ export function parseListeningHtml(html) {
     }
 
     if (currentExercise) {
+      // LỖI 11 FIX: dừng ghi script nếu gặp dòng kẻ ngang (ranh giới đáp án)
+      const plain = el.textContent.replace(/<[^>]*>/g, '').trim();
+      const isSeparator = plain.length >= 5 && /^[-─—_\u2500-\u257F]{5,}$/.test(plain);
+      if (isSeparator) {
+        inAnswerSection = true;
+        continue;
+      }
+
+      // LỖI 12 FIX: skip dòng instruction (Write/Note/Choose/Complete...)
+      const isInstruction = /^(?:write|note|choose|complete|listen|fill|answer|select|use)\b/i.test(plain)
+        && plain.length < 200
+        && !plain.match(/\(\d+\)\s*[_*]{2,}/);  // không phải dòng có blank
+      if (isInstruction) {
+        if (!currentExercise.instruction || currentExercise.instruction === text) {
+          currentExercise.instruction = plain;
+        } else {
+          currentExercise.instruction += ' ' + plain;
+        }
+        continue;
+      }
+
       scriptLines.push(el.innerHTML);
       const gapFills = extractGapFillQuestions(text, el.innerHTML);
       currentExercise.questions.push(...gapFills);
@@ -276,25 +297,32 @@ export function extractAnswerKey(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // FIX 1: join từng element bằng \n thay vì dùng textContent toàn doc
-  // (textContent nối liền các <p> không có dấu xuống dòng → regex fail)
   const lines = Array.from(doc.querySelectorAll('p, li, td'))
     .map(el => el.textContent.trim())
     .filter(Boolean);
   const fullText = lines.join('\n');
 
-  // FIX 2: nhận diện thêm dấu kẻ ngang ──── làm ranh giới đáp án
+  // LỖI 6 FIX: normalize NFC để match ĐÁP ÁN Unicode đúng
+  const normalizedText = fullText.normalize('NFC');
+
   let answerSectionStart = -1;
 
-  const headerPattern = /(?:answer\s*key|answers?|đáp\s*án|key)[\s:：]*/gi;
+  // Pattern mở rộng: case-insensitive + ĐÁP ÁN viết hoa/thường
+  const headerPattern = /(?:answer\s*key|answers?|key|đáp\s*án)[\s:：]*/gi;
+  // Pattern riêng cho ĐÁP ÁN viết hoa (Unicode normalize)
+  const viPattern = /ĐÁP\s*ÁN[\s:：]*/g;
+
   let m;
-  while ((m = headerPattern.exec(fullText)) !== null) {
+  while ((m = headerPattern.exec(normalizedText)) !== null) {
+    answerSectionStart = m.index + m[0].length;
+  }
+  while ((m = viPattern.exec(fullText)) !== null) {
     answerSectionStart = m.index + m[0].length;
   }
 
   // Nếu không có header → tìm dấu kẻ ngang (────, ━━━, ---)
   if (answerSectionStart < 0) {
-    const sepMatch = fullText.match(/[─━—\-]{10,}/);
+    const sepMatch = fullText.match(/[─━—\-_]{10,}/);
     if (sepMatch) {
       answerSectionStart = sepMatch.index + sepMatch[0].length;
     }
@@ -309,6 +337,15 @@ export function extractAnswerKey(html) {
 function _parseAnswerBlock(text) {
   const answers = {};
   let m;
+
+  // Pattern 0 (MỚI): Chữ cái A/B/C/D đứng riêng lẻ mỗi dòng, đánh số tự động
+  // Dùng cho file có format: B\nC\nC\nD\n... (không có số thứ tự)
+  const soloLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const allSolo = soloLines.length >= 5 && soloLines.every(l => /^[A-D]$/.test(l));
+  if (allSolo) {
+    soloLines.forEach((l, i) => { answers[String(i + 1)] = l; });
+    return answers;
+  }
 
   // Pattern 1: MC — chỉ chữ HOA A/B/C/D, không match chữ thường
   const letterPattern = /(?:\(?\s*(\d{1,3})\s*[.):\-]?\s*\)?\s*)([A-D])(?![a-zA-Z])/g;

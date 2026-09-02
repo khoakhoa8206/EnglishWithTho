@@ -181,12 +181,19 @@ function TimerDisplay({ seconds }) {
   );
 }
 
+// ─── Helper: strip phần "A. B. C. D." nhúng trong câu hỏi ───────────────────
+function stripOptionsFromQuestion(text) {
+  // Cắt tại vị trí đầu tiên xuất hiện " A. " hoặc " A) " (có khoảng trắng trước)
+  return text.replace(/\s+[A-D][.)]\s+.+$/s, '').trim();
+}
+
 // ─── Question Card ────────────────────────────────────────────────────────────
 // Schema column names: question (text), options (jsonb), correct (text), question_type (text)
 function QuestionCard({ question, index, answer, onChange }) {
   const type = question.question_type || 'multiple_choice';
   // Schema: column tên là "question" (không phải question_text)
-  const questionText = question.question || question.question_text || '';
+  const rawQuestion = question.question || question.question_text || '';
+  const questionText = stripOptionsFromQuestion(rawQuestion);
 
   return (
     <div style={{

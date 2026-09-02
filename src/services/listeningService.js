@@ -110,7 +110,7 @@ export const listeningService = {
       question_type:  q.question_type || 'multiple_choice',
       options:        JSON.stringify(q.options || []),
       correct:        q.correct,
-      sort_order:     idx,
+      sort_order:     q.number ?? (idx + 1),  // LỖI 5 FIX: dùng số câu thật
     }));
     const { error: qErr } = await supabase
       .from('assignment_questions')

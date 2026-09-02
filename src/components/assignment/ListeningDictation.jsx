@@ -225,6 +225,22 @@ export default function ListeningDictation({ listeningMaterial, questions, onSub
           fontSize: 'clamp(15px, 2vw, 17px)',
           color: '#1a1a1a',
         }}>
+          {/* LỖI 12 FIX: hiển thị instruction tách biệt với marginBottom */}
+          {listeningMaterial?.instruction && (
+            <p style={{
+              fontFamily: 'sans-serif',
+              fontSize: 13.5,
+              color: '#566B58',
+              fontStyle: 'italic',
+              fontWeight: 600,
+              marginTop: 0,
+              marginBottom: '1.5em',
+              borderLeft: '3px solid #566B58',
+              paddingLeft: 12,
+            }}>
+              📝 {listeningMaterial.instruction}
+            </p>
+          )}
           {questions.length === 0 ? (
             <p style={{ color: '#8A7F72', fontStyle: 'italic', fontFamily: 'sans-serif', fontSize: 14 }}>
               Không có câu hỏi điền từ nào.
@@ -248,7 +264,8 @@ function InlineDictationScript({ questions, listeningMaterial, answers, onChange
   const qByNumber = useMemo(() => {
     const map = {};
     questions.forEach(q => {
-      const num = q.sort_order ?? q.number ?? q.position ?? null;
+      // LỖI 5 FIX: ưu tiên q.number (số câu thật trong script)
+      const num = q.number ?? q.sort_order ?? q.position ?? null;
       if (num !== null) map[String(num)] = q;
     });
     return map;
@@ -298,19 +315,27 @@ function InlineDictationScript({ questions, listeningMaterial, answers, onChange
   );
 }
 
-// ─── stripAnswerKey: cắt bỏ phần đáp án ở cuối script (sau dòng kẻ ngang) ────
+// ─── stripAnswerKey: cắt bỏ phần đáp án ở cuối script ────────────────────────
+// LỖI 11 FIX: nhận diện thêm các dạng separator và đáp án liền nhau
 function stripAnswerKey(rawScript) {
   if (!rawScript) return rawScript;
-  // Tách dựa trên dòng chứa ≥10 ký tự gạch ngang (—, ─, -, _) hoặc <hr>
-  // Đây là separator giữa bài nghe và danh sách đáp án
-  const separatorRe = /^[\s\S]*?(?=(?:[-─—_]{10,}|<hr\s*\/?>))/i;
-  // Tìm vị trí dòng separator
   const lines = rawScript.split('\n');
-  const separatorIdx = lines.findIndex(line => {
-    const plain = line.replace(/<[^>]*>/g, '').trim();
-    return plain.length >= 10 && /^[-─—_]{10,}$/.test(plain);
-  });
-  if (separatorIdx === -1) return rawScript; // Không tìm thấy separator → giữ nguyên
+
+  const isAnswerLine = (text) => {
+    const plain = text.replace(/<[^>]*>/g, '').trim();
+    // Dòng kẻ ngang (≥5 ký tự, kể cả Unicode box-drawing)
+    if (plain.length >= 5 && /^[-─—_\u2500-\u257F]{5,}$/.test(plain)) return true;
+    // Header đáp án
+    if (/^(?:answer\s*key|answers?|đáp\s*án|ĐÁP\s*ÁN|key)\s*[：:]?\s*$/i.test(plain)) return true;
+    // Dòng bắt đầu bằng "1. [word]2. [word]" — đáp án liền nhau
+    if (/^1\.\s+\S+.*2\.\s+\S+/.test(plain)) return true;
+    // Dòng có nhiều số + từ liên tiếp (vd: "1. research methods2. theme3. techniques")
+    if (/^(\d+\.\s+[\w\s-]+){3,}/.test(plain)) return true;
+    return false;
+  };
+
+  const separatorIdx = lines.findIndex(line => isAnswerLine(line));
+  if (separatorIdx === -1) return rawScript;
   return lines.slice(0, separatorIdx).join('\n');
 }
 
@@ -373,7 +398,7 @@ function FallbackDictation({ questions, answers, onChange }) {
   return (
     <div>
       {sorted.map((q, idx) => {
-        const num      = q.sort_order ?? q.number ?? (idx + 1);
+        const num      = q.number ?? q.sort_order ?? (idx + 1);  // LỖI 5 FIX
         const answered = answers[q.id]?.trim().length > 0;
         const context  = q.question || q.context || '';
         const SLOT_RE  = new RegExp(`\\(${num}\\)\\s*[_*]{2,}`, 'g');

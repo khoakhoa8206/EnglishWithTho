@@ -220,10 +220,11 @@ function GrammarQuiz({ topic, studentId, onBack, onDone }) {
 
   const handleSubmit = () => {
     let correct = 0;
+    const prefixRe = /^[A-Da-d][.)]\s*/;
     const scored = questions.map(q => {
-      const userAns = (answers[q.id] || '').trim().toLowerCase();
-      const rightAns = (q.correct || '').trim().toLowerCase();
-      const isCorrect = userAns === rightAns;
+      const userAns  = (answers[q.id] || '').trim().toLowerCase().replace(prefixRe, '');
+      const rightAns = (q.correct || '').trim().toLowerCase().replace(prefixRe, '');
+      const isCorrect = userAns !== '' && userAns === rightAns;
       if (isCorrect) correct++;
       return { ...q, userAnswer: answers[q.id] || '', isCorrect };
     });

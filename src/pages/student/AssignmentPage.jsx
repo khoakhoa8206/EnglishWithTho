@@ -115,7 +115,7 @@ export default function AssignmentPage() {
           ? latestVocabExercise.questions
           : (() => { try { return JSON.parse(latestVocabExercise.questions); } catch { return []; } })();
         return qs.map((q, i) => ({
-          id: q.id || `${latestVocabExercise.id}_${i}`,
+          id: q.id || crypto.randomUUID(),
           question: q.question || q.question_text || '',
           options: q.options || [],
           correct: q.correct || '',
@@ -124,6 +124,57 @@ export default function AssignmentPage() {
         }));
       })()
     : [];
+
+  // ── FIX: tất cả useMemo phải nằm TRƯỚC mọi conditional return ──────────────
+  // (React Rules of Hooks: không được gọi hook sau early return)
+
+  const questions = React.useMemo(
+    () => assignment?.assignment_questions || [],
+    [assignment]
+  );
+
+  const selectedWordsRaw = React.useMemo(
+    () => extractVocabWords(questions),
+    [questions]
+  );
+
+  const selectedWords = React.useMemo(
+    () => vocabFull.length > 0
+      ? selectedWordsRaw.map(sw =>
+          vocabFull.find(vf => vf.word.trim().toLowerCase() === sw.word.trim().toLowerCase()) || sw
+        )
+      : selectedWordsRaw,
+    [vocabFull, selectedWordsRaw]
+  );
+
+  const vocabWords = React.useMemo(
+    () => vocabFull.length > 0 ? vocabFull : selectedWordsRaw,
+    [vocabFull, selectedWordsRaw]
+  );
+
+  const questionCount = assignment?.question_count || 10;
+
+  const part2Words = React.useMemo(() => {
+    const pool = vocabFull.length > 0 ? vocabFull : selectedWords;
+    if (pool.length === 0) return [];
+    return shuffle([...pool]).slice(0, Math.min(questionCount, pool.length));
+  }, [vocabFull, selectedWords, questionCount]);
+
+  const part3Words = React.useMemo(() => {
+    const pool = vocabFull.length > 0 ? vocabFull : selectedWords;
+    if (pool.length === 0) return [];
+    const shuffled = shuffle([...pool]);
+    const part2Ids = new Set(part2Words.map(w => w.id));
+    const notInPart2 = shuffled.filter(w => !part2Ids.has(w.id));
+    const inPart2    = shuffled.filter(w => part2Ids.has(w.id));
+    return [...notInPart2, ...inPart2].slice(0, Math.min(questionCount, pool.length));
+  }, [vocabFull, selectedWords, questionCount, part2Words]);
+
+  const part4Questions = React.useMemo(() => {
+    if (vocabExerciseQuestions.length === 0) return [];
+    const count = assignment?.question_count || 10;
+    return shuffle([...vocabExerciseQuestions]).slice(0, Math.min(count, vocabExerciseQuestions.length));
+  }, [vocabExerciseQuestions, assignment?.question_count]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -172,11 +223,16 @@ export default function AssignmentPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      // Nếu là vocab exercise, truyền map đáp án để chấm offline (tránh lỗi UUID)
+      const exerciseCorrectMap = isVocab && part4Questions.length > 0
+        ? Object.fromEntries(part4Questions.map(q => [q.id, q.correct]))
+        : null;
       const res = await assignmentService.submitAttempt({
         studentId,
         assignmentId,
         startedAt,
         answers,
+        exerciseCorrectMap,
       });
       setResult(res);
       setPhase('result');
@@ -204,25 +260,6 @@ export default function AssignmentPage() {
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!assignment) return <EmptyState icon="📭" title="Không tìm thấy bài tập" />;
 
-  const questions = assignment.assignment_questions || [];
-
-  // BUG FIX: ưu tiên vocabFull (từ bảng vocabularies, có đủ IPA/example/part_of_speech)
-  // Fallback về extractVocabWords nếu không có vocab_topic_id (assignment cũ)
-  // Dùng cho Part 1 (Flashcard) - học toàn bộ từ vựng của topic.
-  const vocabWords = vocabFull.length > 0 ? vocabFull : extractVocabWords(questions);
-
-  // BUG FIX: assignment_questions chỉ chứa đúng các câu hỏi nghĩa mà giáo viên
-  // đã CHỌN khi tạo bài (selectedVocabIds), không phải toàn bộ từ của topic.
-  // Part 2 (Matching) và Part 3 (Fill) phải dùng đúng danh sách đã chọn này,
-  // không được dùng vocabWords/vocabFull (toàn bộ từ trong topic).
-  const selectedWordsRaw = extractVocabWords(questions);
-  const selectedWords = vocabFull.length > 0
-    ? selectedWordsRaw
-        .map(sw => vocabFull.find(
-          vf => vf.word.trim().toLowerCase() === sw.word.trim().toLowerCase()
-        ) || sw)
-    : selectedWordsRaw;
-
   return (
     <div style={phase === 'part4_doing' && isListening ? { minHeight: '100vh' } : { padding: '24px 20px', maxWidth: 860, margin: '0 auto', minHeight: '100vh' }}>
       {phase !== 'part4_doing' && <BackButton to="/student/homework" />}
@@ -232,7 +269,7 @@ export default function AssignmentPage() {
         <IntroPanel
           assignment={assignment}
           questions={questions}
-          part4Count={isVocab ? vocabExerciseQuestions.length : questions.length}
+          part4Count={isVocab ? part4Questions.length : questions.length}
           prevAttempts={prevAttempts}
           hasPrevAttempt={hasPrevAttempt}
           isVocab={isVocab}
@@ -277,17 +314,18 @@ export default function AssignmentPage() {
       {phase === 'part2' && (
         <PartWrapper title="Phần 2: Nối từ" step={2} total={4}>
           <Part2Matching
-            words={selectedWords}
+            words={part2Words}
+            count={questionCount}
             onDone={handlePart2Done}
           />
         </PartWrapper>
       )}
 
       {/* PART 3 — Input */}
-      {phase === 'part3' && selectedWords.length > 0 && (
+      {phase === 'part3' && part3Words.length > 0 && (
         <PartWrapper title="Phần 3: Điền từ" step={3} total={4}>
           <Part3Input
-            words={selectedWords}
+            words={part3Words}
             onDone={handlePart3Done}
           />
         </PartWrapper>
@@ -309,7 +347,7 @@ export default function AssignmentPage() {
         ) : (
           <QuizEngine
             assignment={assignment}
-            questions={isVocab && vocabExerciseQuestions.length > 0 ? vocabExerciseQuestions : questions}
+            questions={isVocab && part4Questions.length > 0 ? part4Questions : questions}
             startedAt={startedAt}
             submitting={submitting}
             submitError={submitError}
@@ -766,12 +804,9 @@ function Part1Flashcard({ words, onDone, reviewMode = false }) {
 
 // ─── Part 2: Matching ─────────────────────────────────────────────────────────
 
-// BUG 4 FIX: Bỏ toàn bộ selector "Số cặp" — học sinh không có quyền chọn
-// Dùng tất cả từ (tối đa 15 để tránh quá dài)
-function Part2Matching({ words, onDone }) {
-  const MAX_PAIRS = 15;
-
-  // Guard: chờ words load xong
+// LỖI 1 FIX: nhận count từ assignment.question_count, words từ part2Words (vocabFull)
+function Part2Matching({ words, count, onDone }) {
+  // words = pool đã được random bên ngoài, count = assignment.question_count
   if (!words || words.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '32px 0', color: '#8A7F72' }}>
@@ -789,9 +824,8 @@ function Part2Matching({ words, onDone }) {
     );
   }
 
-  // Bắt đầu ngay, không cần màn hình chọn số lượng
-  const count = Math.min(MAX_PAIRS, words.length);
-  return <Part2MatchingInner words={words} count={count} onDone={onDone} />;
+  const actualCount = Math.min(count || 10, words.length);
+  return <Part2MatchingInner words={words} count={actualCount} onDone={onDone} />;
 }
 
 function Part2MatchingInner({ words, count, onDone }) {
@@ -812,14 +846,18 @@ function Part2MatchingInner({ words, count, onDone }) {
 
   const handleLeft = (id) => {
     if (matched.has(id)) return;
-    setSelected(s => ({ ...s, left: id }));
-    tryMatch({ ...selected, left: id });
+    // FIX: tính next trước, dùng next cho cả setSelected lẫn tryMatch
+    // tránh stale closure (selected chưa update khi tryMatch chạy)
+    const next = { ...selected, left: id };
+    setSelected(next);
+    tryMatch(next);
   };
 
   const handleRight = (id) => {
     if (matched.has(id)) return;
-    setSelected(s => ({ ...s, right: id }));
-    tryMatch({ ...selected, right: id });
+    const next = { ...selected, right: id };
+    setSelected(next);
+    tryMatch(next);
   };
 
   const tryMatch = ({ left, right }) => {
@@ -864,7 +902,7 @@ function Part2MatchingInner({ words, count, onDone }) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, overflow: 'hidden', width: '100%' }}>
       {/* Left: words */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p style={{ fontSize: 11.5, fontWeight: 700, color: '#8A7F72', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '.04em' }}>Từ tiếng Anh</p>
@@ -913,8 +951,9 @@ function Part3Input({ words, onDone }) {
   const questions = words.map(w => ({
     word: w,
     prompt: w.example
-      ? w.example.replace(new RegExp(`\\b${w.word}\\b`, 'gi'), '___')
-      : `___ (nghĩa: ${w.meaning_vi})`,
+      ? w.example.replace(new RegExp(`\\b${w.word}\\b`, 'gi'), '_____')
+      : `Fill in the blank: _____`,
+    hint: w.ipa ? `/${w.ipa}/` : '',
   }));
 
   const [answers, setAnswers] = useState(() => Object.fromEntries(

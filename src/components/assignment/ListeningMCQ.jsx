@@ -58,7 +58,11 @@ export default function ListeningMCQ({ listeningMaterial, questions, onSubmit, o
         {questions.length === 0 ? (
           <p style={{ color: '#8A7F72', fontStyle: 'italic', fontFamily: 'sans-serif', fontSize: 14 }}>Không có câu hỏi trắc nghiệm nào.</p>
         ) : (
-          [...questions].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((q, idx) => (
+          [...questions].sort((a, b) => {
+                const pa = a.sort_order ?? a.position ?? 0;
+                const pb = b.sort_order ?? b.position ?? 0;
+                return pa - pb;
+              }).map((q, idx) => (
             <div key={q.id} style={{ background: '#fff', border: `2px solid ${answers[q.id] ? '#A7C5A9' : '#EFE6D6'}`, borderRadius: 14, padding: '16px 20px', transition: 'border-color 0.2s' }}>
               <p style={{ fontSize: 15, fontWeight: 600, color: '#332C35', margin: '0 0 12px', lineHeight: 1.5 }}>
                 {q.position ?? idx + 1}. {q.question}
@@ -66,9 +70,9 @@ export default function ListeningMCQ({ listeningMaterial, questions, onSubmit, o
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {(Array.isArray(q.options) ? q.options : []).map((opt, i) => {
                   const letter = parseOptionLetter(opt) || String.fromCharCode(65 + i);
-                  const isSelected = answers[q.id] === letter;
+                  const isSelected = answers[q.id] === opt;
                   return (
-                    <button key={i} onClick={() => setAnswers(prev => ({ ...prev, [q.id]: letter }))}
+                    <button key={i} onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt }))}
                       style={{ textAlign: 'left', padding: '10px 14px', borderRadius: 10, fontSize: 14, fontWeight: isSelected ? 700 : 400, border: `2px solid ${isSelected ? '#566B58' : '#EFE6D6'}`, background: isSelected ? '#EDF3ED' : '#FDFAF5', color: isSelected ? '#2E7D32' : '#4A3F35', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ width: 24, height: 24, borderRadius: '50%', background: isSelected ? '#566B58' : '#EFE6D6', color: isSelected ? '#fff' : '#8A7F72', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                         {letter}

@@ -410,6 +410,20 @@ function UploadEx4Modal({ open, onClose, teacherId, topicId, topicTitle, onSaved
           File .docx có câu hỏi + đáp án cuối trang. Tự đọc, không qua AI.
         </p>
 
+        {/* LỖI 7 FIX: hướng dẫn định dạng file */}
+        <details style={{ marginBottom: 16, fontSize: 13, color: '#4A3F35' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#566B58' }}>
+            📋 Hướng dẫn định dạng file Word (click để xem)
+          </summary>
+          <div style={{ marginTop: 10, background: '#F5EDE0', borderRadius: 8, padding: '12px 14px', lineHeight: 1.8 }}>
+            <p style={{ margin: '0 0 6px' }}><b>Phần câu hỏi:</b> Mỗi câu ghi theo dạng:</p>
+            <code style={{ display: 'block', background: '#fff', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: 12, whiteSpace: 'pre-wrap' }}>{'1. Many families have a _____ of gathering during Tet.\nA. privilege   B. custom   C. fate   D. dismissal'}</code>
+            <p style={{ margin: '0 0 6px' }}><b>Phần đáp án:</b> Viết tiêu đề <b>ĐÁP ÁN</b> hoặc <b>Đáp án</b> hoặc <b>Answer Key</b> trên một dòng riêng, sau đó liệt kê:</p>
+            <code style={{ display: 'block', background: '#fff', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: 12, whiteSpace: 'pre-wrap' }}>{'ĐÁP ÁN \n 1. B   2. C   3. A   4. D'}</code>
+            <p style={{ color: '#C24949', margin: 0 }}>⚠️ Tiêu đề <b>ĐÁP ÁN</b> phải đứng riêng một dòng, không viết liền với câu số 1.</p>
+          </div>
+        </details>
+
         {phase === 'upload' && (
           <>
             <input type="file" accept=".docx" onChange={handleFile} />

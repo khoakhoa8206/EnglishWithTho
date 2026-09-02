@@ -218,12 +218,21 @@ async getById(assignmentId) {
     return true;
   },
 
-  async submitAttempt({ studentId, assignmentId, startedAt, answers }) {
-    const { data: questions, error: qErr } = await supabase
-      .from('assignment_questions')
-      .select('id, correct')
-      .eq('assignment_id', assignmentId);
-    if (qErr) throw qErr;
+  async submitAttempt({ studentId, assignmentId, startedAt, answers, exerciseCorrectMap }) {
+    let questionMap;
+
+    if (exerciseCorrectMap) {
+      // Vocab exercise: chấm điểm offline từ map được truyền xuống, không cần DB lookup
+      questionMap = new Map(Object.entries(exerciseCorrectMap));
+    } else {
+      // Grammar / Listening: lấy từ assignment_questions trong DB
+      const { data: questions, error: qErr } = await supabase
+        .from('assignment_questions')
+        .select('id, correct')
+        .eq('assignment_id', assignmentId);
+      if (qErr) throw qErr;
+      questionMap = new Map((questions || []).map(q => [q.id, q.correct]));
+    }
 
     const { count: existingCount } = await supabase
       .from('assignment_attempts')
@@ -232,8 +241,7 @@ async getById(assignmentId) {
       .eq('student_id', studentId);
     const attemptNumber = (parseInt(existingCount, 10) || 0) + 1;
 
-    const questionMap = new Map((questions || []).map(q => [q.id, q.correct]));
-    const totalQuestions = questionMap.size;
+    const totalQuestions = questionMap.size || (answers || []).length;
 
     let correctCount = 0;
     const scoredAnswers = (answers || []).map(a => {
@@ -271,16 +279,23 @@ async getById(assignmentId) {
       .select().single();
     if (ae) throw ae;
 
-    const answersToInsert = scoredAnswers.map(a => ({
-      attempt_id:     attempt.id,
-      question_id:    a.question_id,
-      student_answer: a.student_answer,
-      is_correct:     a.is_correct,
-    }));
+    const answersToInsert = scoredAnswers
+      .filter(a => _isValidUUID(a.question_id))  // chỉ insert nếu question_id là UUID hợp lệ
+      .map(a => ({
+        attempt_id:     attempt.id,
+        question_id:    a.question_id,
+        student_answer: a.student_answer,
+        is_correct:     a.is_correct,
+      }));
     if (answersToInsert.length > 0) {
-      const { error: ansErr } = await supabase
-        .from('assignment_answers').insert(answersToInsert);
-      if (ansErr) throw ansErr;
+      try {
+        const { error: ansErr } = await supabase
+          .from('assignment_answers').insert(answersToInsert);
+        if (ansErr) console.warn('Bỏ qua lỗi insert answers:', ansErr.message);
+      } catch (e) {
+        console.warn('Bỏ qua lỗi insert answers:', e.message);
+        // Không throw — attempt record đã được lưu, điểm đã tính xong
+      }
     }
 
     await this._updateStreak(studentId);
@@ -424,9 +439,15 @@ function _normalizeAnswer(raw) {
   return String(raw)
     .trim()
     .toLowerCase()
+    // Bỏ prefix "A. ", "B) " nếu có (DB có thể lưu full text có prefix)
+    .replace(/^[a-d][.)]\s*/i, '')
     .replace(/\s+/g, ' ')
     .replace(/[.,;:!?]+$/, '')
     .trim();
+}
+
+function _isValidUUID(str) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
 function _shuffle(arr) {
