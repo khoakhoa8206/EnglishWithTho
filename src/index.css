@@ -1,0 +1,14 @@
+/* src/index.css — global base */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  background: #FDF6EC;
+  color: #4A3F35;
+  -webkit-font-smoothing: antialiased;
+}
+a { text-decoration: none; color: inherit; }
+button { font-family: inherit; cursor: pointer; }

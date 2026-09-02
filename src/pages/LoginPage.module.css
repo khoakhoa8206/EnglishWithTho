@@ -1,0 +1,283 @@
+/* src/pages/LoginPage.module.css */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+}
+
+/* ── Left decorative panel ── */
+.panel {
+  width: 420px;
+  flex-shrink: 0;
+  background: linear-gradient(160deg, #566B58 0%, #768E78 60%, #8FA892 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  top: -80px;
+  right: -80px;
+}
+
+.panel::after {
+  content: '';
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  bottom: -40px;
+  left: -40px;
+}
+
+.panelInner {
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  padding: 32px;
+}
+
+.mascot {
+  margin-bottom: 20px;
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,0.18));
+}
+
+.brand {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 12px;
+  letter-spacing: -0.5px;
+}
+
+.tagline {
+  font-size: 16px;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.65;
+  margin: 0 0 28px;
+  font-weight: 500;
+}
+
+.dots {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  opacity: 0.9;
+}
+
+/* ── Right form side ── */
+.formSide {
+  flex: 1;
+  background: #FDF6EC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.formCard {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 40px 36px;
+  box-shadow: 0 8px 32px rgba(118,142,120,0.12);
+  border: 1px solid #EFE6D6;
+}
+
+.formHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.formEmoji {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.formTitle {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #4A3F35;
+  margin: 0 0 6px;
+}
+
+.formSub {
+  font-size: 14px;
+  color: #8A7F72;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ── Form fields ── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4A3F35;
+  letter-spacing: 0.02em;
+}
+
+.input {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #DDD5C8;
+  font-size: 15px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  color: #4A3F35;
+  background: #FDFAF5;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.input::placeholder {
+  color: #C4B9AC;
+}
+
+.input:focus {
+  border-color: #768E78;
+  box-shadow: 0 0 0 3px rgba(118,142,120,0.12);
+  background: #fff;
+}
+
+.input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Error ── */
+.error {
+  background: #FBEBEB;
+  border: 1.5px solid #E79897;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  color: #A94E4E;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* ── Submit button ── */
+.btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #566B58, #768E78);
+  color: #fff;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  margin-top: 4px;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(86,107,88,0.35);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ── Spinner ── */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Hint text ── */
+.hint {
+  text-align: center;
+  font-size: 12.5px;
+  color: #8A7F72;
+  margin: 20px 0 0;
+  line-height: 1.5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 720px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .panel {
+    width: 100%;
+    padding: 40px 24px 32px;
+  }
+
+  .panelInner {
+    padding: 0;
+  }
+
+  .brand { font-size: 28px; }
+  .mascot svg { width: 80px; height: 80px; }
+
+  .formCard {
+    padding: 28px 22px;
+  }
+}
+
+.btnBack {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px solid #DDD5C8;
+  background: transparent;
+  color: #8A7F72;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btnBack:hover { background: #F5F0E8; }

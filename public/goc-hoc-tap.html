@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mochi Study — Góc học tập của em</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FDF6EC;
+    --paper:#FFFFFF;
+    --ink:#4A3F35;
+    --ink-soft:#8A7F72;
+    --fern:#768E78;
+    --fern-dark:#566B58;
+    --fern-tint:#E7EEE6;
+    --pistachio:#C6C09C;
+    --pistachio-dark:#8C8560;
+    --pistachio-tint:#F3F1E6;
+    --fennel:#EBDEC0;
+    --fennel-dark:#9C7E42;
+    --fennel-tint:#FAF4E7;
+    --peony:#E79897;
+    --peony-dark:#A94E4E;
+    --peony-tint:#FBEBEB;
+    --peach:#FCAC85;
+    --peach-dark:#B45B2E;
+    --peach-tint:#FEF0E7;
+    --honey:#FCC88A;
+    --honey-dark:#A9701C;
+    --honey-tint:#FEF3E4;
+    --radius-lg:24px;
+    --radius-md:16px;
+    --shadow:0 6px 18px rgba(118,142,120,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Be Vietnam Pro', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.brand,.streak-num{
+    font-family:'Baloo 2', sans-serif;
+  }
+  img,svg{display:block;}
+  a{text-decoration:none;color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+
+  /* ---------- NAVBAR ---------- */
+  .navbar{
+    background:var(--paper);
+    border-bottom:1px solid #EFE6D6;
+    position:sticky;top:0;z-index:50;
+  }
+  .navbar-inner{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 0;gap:16px;flex-wrap:wrap;
+  }
+  .nav-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .brand{
+    display:flex;align-items:center;gap:8px;
+    font-size:22px;font-weight:700;color:var(--fern-dark);
+    margin-right:8px;white-space:nowrap;
+  }
+  .brand-dot{
+    width:34px;height:34px;border-radius:50%;
+    background:var(--fern-tint);display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+  }
+  .pill{
+    display:flex;align-items:center;gap:8px;
+    padding:9px 16px;border-radius:999px;
+    font-size:14px;font-weight:600;
+    border:1.5px solid transparent;
+    white-space:nowrap;
+  }
+  .pill-tuition{
+    background:var(--honey-tint);
+    color:var(--honey-dark);
+    border-color:var(--honey);
+  }
+  .pill-tuition b{font-weight:700;}
+  .btn-logout{
+    display:flex;align-items:center;gap:6px;
+    padding:9px 16px;border-radius:999px;
+    font-size:14px;font-weight:600;
+    background:var(--peony-tint);color:var(--peony-dark);
+    border:1.5px solid var(--peony);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn-logout:hover{transform:translateY(-1px);box-shadow:var(--shadow);}
+  .nav-right{display:flex;align-items:center;gap:12px;}
+  .student-card{
+    display:flex;align-items:center;gap:10px;
+    padding:6px 16px 6px 6px;border-radius:999px;
+    background:var(--fern-tint);
+    border:1.5px solid var(--fern);
+  }
+  .avatar{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--fern);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:15px;
+  }
+  .student-name{font-weight:700;font-size:15px;color:var(--fern-dark);line-height:1.15;}
+  .student-role{font-size:12px;color:var(--ink-soft);font-weight:500;}
+  .nav-toggle{display:none;}
+
+  /* ---------- HERO / STREAK ---------- */
+  .streak-section{
+    background:linear-gradient(180deg,var(--fern-tint) 0%, var(--cream) 100%);
+    border-bottom:1px solid #EFE6D6;
+    padding:34px 0 30px;
+  }
+  .streak-card{
+    background:var(--fern);
+    border-radius:var(--radius-lg);
+    padding:28px 32px;
+    display:flex;align-items:center;justify-content:space-between;
+    gap:24px;position:relative;overflow:hidden;
+    box-shadow:0 10px 26px rgba(86,107,88,0.28);
+  }
+  .streak-left{color:#fff;position:relative;z-index:2;}
+  .streak-eyebrow{
+    font-size:13px;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;color:#DCEBDC;margin-bottom:6px;
+  }
+  .streak-num-row{display:flex;align-items:baseline;gap:10px;}
+  .streak-num{font-size:52px;font-weight:800;line-height:1;}
+  .streak-unit{font-size:18px;font-weight:600;opacity:.92;}
+  .streak-msg{margin-top:10px;font-size:15px;color:#EAF2EA;max-width:360px;line-height:1.55;}
+  .streak-days{
+    display:flex;gap:8px;margin-top:18px;position:relative;z-index:2;flex-wrap:wrap;
+  }
+  .day-chip{
+    width:38px;height:38px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:#fff;
+    background:rgba(255,255,255,0.18);
+  }
+  .day-chip.done{background:var(--honey);color:var(--honey-dark);}
+  .day-chip.today{outline:2px solid #fff;outline-offset:2px;}
+  .mochi{
+    flex-shrink:0;position:relative;z-index:2;
+  }
+  .streak-bubble{
+    position:absolute;top:10px;right:150px;
+    background:#fff;color:var(--fern-dark);
+    padding:8px 14px;border-radius:14px;
+    font-size:13px;font-weight:600;
+    box-shadow:0 6px 14px rgba(0,0,0,0.12);
+  }
+  .streak-bubble:after{
+    content:"";position:absolute;bottom:-7px;right:22px;
+    width:0;height:0;border:7px solid transparent;
+    border-top-color:#fff;
+  }
+
+  /* ---------- SECTION HEADS ---------- */
+  .section{padding:34px 0;}
+  .section-head{margin-bottom:20px;}
+  .section-title{font-size:22px;font-weight:700;color:var(--ink);margin:0 0 4px;}
+  .section-sub{font-size:14px;color:var(--ink-soft);margin:0;}
+
+  /* ---------- FEATURE GRID ---------- */
+  .grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:18px;
+  }
+  .card{
+    border-radius:var(--radius-md);
+    padding:22px 22px 20px;
+    min-height:168px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    transition:transform .18s ease, box-shadow .18s ease;
+    border:1px solid rgba(0,0,0,0.04);
+  }
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow);}
+  .card-icon{
+    width:42px;height:42px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;background:rgba(255,255,255,0.55);margin-bottom:14px;
+  }
+  .card-title{font-size:17px;font-weight:700;margin:0 0 6px;}
+  .card-desc{font-size:13.5px;line-height:1.5;margin:0;opacity:.88;}
+  .card-link{
+    margin-top:14px;font-size:13px;font-weight:700;
+    display:inline-flex;align-items:center;gap:4px;
+  }
+
+  .card-pistachio{background:var(--pistachio-tint);color:var(--pistachio-dark);}
+  .card-pistachio .card-icon{color:var(--pistachio-dark);}
+  .card-fennel{background:var(--fennel-tint);color:var(--fennel-dark);}
+  .card-fennel .card-icon{color:var(--fennel-dark);}
+  .card-peony{background:var(--peony-tint);color:var(--peony-dark);}
+  .card-peony .card-icon{color:var(--peony-dark);}
+  .card-peach{background:var(--peach-tint);color:var(--peach-dark);grid-column:span 2;}
+  .card-peach .card-icon{color:var(--peach-dark);}
+  .card-honey{background:var(--honey-tint);color:var(--honey-dark);}
+  .card-honey .card-icon{color:var(--honey-dark);}
+
+  .card-peach-inner{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;}
+  .mini-stats{display:flex;gap:22px;}
+  .mini-stat b{display:block;font-size:20px;}
+  .mini-stat span{font-size:12px;opacity:.85;}
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    padding:26px 0 40px;text-align:center;
+    color:var(--ink-soft);font-size:13px;
+  }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 980px){
+    .grid{grid-template-columns:repeat(2,1fr);}
+    .card-peach{grid-column:span 2;}
+    .streak-bubble{display:none;}
+  }
+  @media (max-width: 720px){
+    .wrap{padding:0 18px;}
+    .navbar-inner{flex-direction:row;justify-content:space-between;padding:12px 0;}
+    .nav-left{gap:8px;}
+    .brand{font-size:18px;margin-right:0;}
+    .brand span.brand-text{display:none;}
+    .pill-tuition span.tuition-label{display:none;}
+    .student-name{font-size:13px;}
+    .student-role{display:none;}
+    .streak-card{flex-direction:column;align-items:flex-start;padding:22px;}
+    .mochi{align-self:center;}
+    .streak-num{font-size:42px;}
+    .grid{grid-template-columns:1fr;}
+    .card-peach{grid-column:span 1;}
+    .card-peach-inner{flex-direction:column;align-items:flex-start;gap:14px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="navbar">
+  <div class="wrap navbar-inner">
+    <div class="nav-left">
+      <div class="brand"><span class="brand-dot">🐰</span><span class="brand-text">Mochi Study</span></div>
+      <button class="btn-logout" onclick="alert('Đăng xuất thành công. Hẹn gặp lại em!')">
+        <span>↩</span> Đăng xuất
+      </button>
+      <div class="pill pill-tuition">
+        <span>💳</span><span class="tuition-label">Học phí:</span> <b>Đã đóng — Tháng 8</b>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="student-card">
+        <div class="avatar">HT</div>
+        <div>
+          <div class="student-name">Nguyễn Hồng Thư</div>
+          <div class="student-role">Lớp IELTS 8.5+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="streak-section">
+  <div class="wrap">
+    <div class="streak-card">
+      <div class="streak-left">
+        <div class="streak-eyebrow">Chuỗi học tập</div>
+        <div class="streak-num-row">
+          <span class="streak-num">🔥 15</span>
+          <span class="streak-unit">ngày liên tiếp</span>
+        </div>
+        <p class="streak-msg">Tuyệt vời! Em đã học liên tục 15 ngày rồi. Đừng bỏ lỡ hôm nay để giữ chuỗi nhé.</p>
+        <div class="streak-days" id="streakDays"></div>
+      </div>
+      <div class="streak-bubble">Cố lên nào!</div>
+      <svg class="mochi" width="120" height="120" viewBox="0 0 120 120" fill="none">
+        <ellipse cx="60" cy="100" rx="34" ry="14" fill="rgba(0,0,0,0.08)"/>
+        <path d="M40 30 C34 10, 30 4, 34 2 C40 0, 46 14, 48 26 Z" fill="#FDF6EC"/>
+        <path d="M80 30 C86 10, 90 4, 86 2 C80 0, 74 14, 72 26 Z" fill="#FDF6EC"/>
+        <path d="M42 28 C38 14, 36 10, 38 8 C42 7, 46 16, 47 26 Z" fill="#F3C7C6"/>
+        <path d="M78 28 C82 14, 84 10, 82 8 C78 7, 74 16, 73 26 Z" fill="#F3C7C6"/>
+        <ellipse cx="60" cy="66" rx="38" ry="34" fill="#FDF6EC"/>
+        <ellipse cx="46" cy="62" rx="4.5" ry="6" fill="#4A3F35"/>
+        <ellipse cx="74" cy="62" rx="4.5" ry="6" fill="#4A3F35"/>
+        <ellipse cx="60" cy="72" rx="5" ry="3.5" fill="#F3A79E"/>
+        <path d="M52 80 Q60 86 68 80" stroke="#4A3F35" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <ellipse cx="34" cy="74" rx="6" ry="4" fill="#FBD8D5"/>
+        <ellipse cx="86" cy="74" rx="6" ry="4" fill="#FBD8D5"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<main class="wrap section">
+  <div class="section-head">
+    <h2 class="section-title">Không gian học của em</h2>
+    <p class="section-sub">Chọn một mục để bắt đầu buổi học hôm nay.</p>
+  </div>
+
+  <div class="grid">
+    <a class="card card-pistachio" href="#btvn">
+      <div>
+        <div class="card-icon">📘</div>
+        <h3 class="card-title">Bài tập về nhà</h3>
+        <p class="card-desc">Xem và nộp bài tập được giao trong tuần.</p>
+      </div>
+      <span class="card-link">Vào làm bài →</span>
+    </a>
+
+    <a class="card card-fennel" href="#tuvung">
+      <div>
+        <div class="card-icon">📚</div>
+        <h3 class="card-title">Từ vựng theo chủ đề</h3>
+        <p class="card-desc">Học và ôn từ vựng IELTS theo từng chủ đề cụ thể.</p>
+      </div>
+      <span class="card-link">Ôn từ vựng →</span>
+    </a>
+
+    <a class="card card-peony" href="#nguphap">
+      <div>
+        <div class="card-icon">✍️</div>
+        <h3 class="card-title">Ngữ pháp</h3>
+        <p class="card-desc">Bài giảng và bài luyện tập các điểm ngữ pháp trọng tâm.</p>
+      </div>
+      <span class="card-link">Luyện ngữ pháp →</span>
+    </a>
+
+    <a class="card card-peach" href="#tongket">
+      <div class="card-peach-inner">
+        <div>
+          <div class="card-icon">📊</div>
+          <h3 class="card-title">Tổng kết tiến độ</h3>
+          <p class="card-desc">Theo dõi chuỗi học tập và bài tập về nhà trong một chỗ.</p>
+        </div>
+        <div class="mini-stats">
+          <div class="mini-stat"><b>15</b><span>ngày chuỗi</span></div>
+          <div class="mini-stat"><b>9/10</b><span>BTVN hoàn thành</span></div>
+        </div>
+      </div>
+      <span class="card-link">Xem tổng kết →</span>
+    </a>
+
+    <a class="card card-honey" href="#khac">
+      <div>
+        <div class="card-icon">⭐</div>
+        <h3 class="card-title">Khác</h3>
+        <p class="card-desc">Tài liệu bổ sung, thông báo và mẹo học tập.</p>
+      </div>
+      <span class="card-link">Khám phá →</span>
+    </a>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">Mochi Study · Đồng hành cùng em trên hành trình chinh phục IELTS 🐰</div>
+</footer>
+
+<script>
+  const days = ["T2","T3","T4","T5","T6","T7","CN"];
+  const doneCount = 5;
+  const todayIdx = 4;
+  const container = document.getElementById('streakDays');
+  days.forEach((d,i)=>{
+    const el = document.createElement('div');
+    el.className = 'day-chip' + (i < doneCount ? ' done' : '') + (i === todayIdx ? ' today' : '');
+    el.textContent = d;
+    container.appendChild(el);
+  });
+</script>
+
+</body>
+</html>

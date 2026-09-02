@@ -1,0 +1,870 @@
+/* src/layouts/teacher.css
+   Design tokens & shared classes cho toàn bộ Teacher pages.
+   Import một lần trong TeacherLayout.jsx: import './teacher.css';
+*/
+
+/* ── TOKENS ──────────────────────────────────────────── */
+:root {
+  --t-bg:         #FBF1F5;
+  --t-card:       #FFFFFF;
+  --t-border:     #F1DDE8;
+  --t-shadow:     0 4px 18px rgba(196,90,140,0.08);
+  --t-radius:     16px;
+  --t-radius-sm:  10px;
+
+  --t-pink-50:    #FDEEF4;
+  --t-pink-100:   #FBDCE8;
+  --t-pink-200:   #F4B8D0;
+  --t-pink-400:   #E982AC;
+  --t-pink-500:   #E1608F;
+  --t-rose:       #9E3459;
+  --t-rose-mid:   #C94874;
+
+  --t-lav-50:     #EFF2FC;
+  --t-lav-200:    #C9D4F5;
+  --t-lav-500:    #8296E0;
+  --t-lav-600:    #5F73C4;
+
+  --t-mint-100:   #DDF3E7;
+  --t-mint-500:   #4FB784;
+  --t-mint-600:   #2E9767;
+
+  --t-amber-100:  #FCEDD3;
+  --t-amber-500:  #E0A93C;
+  --t-amber-600:  #B8842A;
+
+  --t-red-100:    #FBE1E1;
+  --t-red-500:    #DD6B6B;
+  --t-red-600:    #C24949;
+
+  --t-ink:        #332C35;
+  --t-muted:      #8E8492;
+  --t-faint:      #B9AEBE;
+
+  --t-font-head:  'Quicksand', sans-serif;
+  --t-font-body:  'Inter', sans-serif;
+}
+
+/* ── PAGE WRAPPER ────────────────────────────────────── */
+.t-page {
+  padding: 26px 32px;
+  max-width: 1180px;
+  font-family: var(--t-font-body);
+  color: var(--t-ink);
+}
+
+/* ── TOPBAR ──────────────────────────────────────────── */
+.t-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.t-topbar h1 {
+  font-family: var(--t-font-head);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--t-ink);
+  margin: 0 0 4px 0;
+}
+.t-topbar p {
+  font-size: 13.5px;
+  color: var(--t-muted);
+  margin: 0;
+}
+.t-teacher-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--t-card);
+  border: 1px solid var(--t-border);
+  border-radius: 999px;
+  padding: 6px 14px 6px 6px;
+  white-space: nowrap;
+}
+.t-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--t-pink-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--t-rose);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.t-teacher-chip span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t-ink);
+}
+
+/* ── STAT GRID ───────────────────────────────────────── */
+.t-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.t-stat-card {
+  background: var(--t-card);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius);
+  padding: 16px 18px;
+  box-shadow: var(--t-shadow);
+}
+.t-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.t-stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.t-stat-icon svg { width: 17px; height: 17px; }
+.t-stat-label {
+  font-size: 12px;
+  color: var(--t-muted);
+  font-weight: 600;
+}
+.t-stat-value {
+  font-family: var(--t-font-head);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--t-ink);
+  margin: 0;
+}
+.t-stat-sub {
+  font-size: 11.5px;
+  color: var(--t-muted);
+  margin-top: 4px;
+  display: block;
+}
+
+/* ── CARD ────────────────────────────────────────────── */
+.t-card {
+  background: var(--t-card);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius);
+  padding: 18px 20px;
+  box-shadow: var(--t-shadow);
+  margin-bottom: 16px;
+}
+.t-card-title {
+  font-family: var(--t-font-head);
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--t-ink);
+  margin: 0 0 14px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.t-card-title small {
+  font-family: var(--t-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t-muted);
+}
+
+/* ── FILTER BAR ──────────────────────────────────────── */
+.t-filter-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.t-filter-bar select,
+.t-filter-bar input {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: var(--t-radius-sm);
+  border: 1px solid var(--t-border);
+  font-family: var(--t-font-body);
+  color: var(--t-ink);
+  background: #fff;
+  outline: none;
+}
+.t-filter-bar select { width: auto; }
+.t-filter-bar input { flex: 1; min-width: 200px; }
+.t-filter-bar select:focus,
+.t-filter-bar input:focus { border-color: var(--t-pink-400); }
+
+/* ── TABLE ───────────────────────────────────────────── */
+.t-table-wrap { overflow-x: auto; }
+.t-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.t-table th {
+  text-align: left;
+  color: var(--t-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--t-border);
+}
+.t-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--t-border);
+  color: var(--t-ink);
+  vertical-align: middle;
+}
+.t-table tr:last-child td { border-bottom: none; }
+.t-table tr:hover td { background: var(--t-pink-50); }
+
+.t-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.t-mini-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--t-lav-200);
+  color: var(--t-lav-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── BADGES ──────────────────────────────────────────── */
+.t-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.t-badge-mint   { background: var(--t-mint-100);  color: var(--t-mint-600); }
+.t-badge-amber  { background: var(--t-amber-100); color: var(--t-amber-600); }
+.t-badge-red    { background: var(--t-red-100);   color: var(--t-red-600); }
+.t-badge-pink   { background: var(--t-pink-100);  color: var(--t-rose); }
+.t-badge-lav    { background: var(--t-lav-50);    color: var(--t-lav-600); }
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.t-btn {
+  font-family: var(--t-font-body);
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: var(--t-radius-sm);
+  padding: 9px 16px;
+  border: 1px solid var(--t-border);
+  background: var(--t-card);
+  color: var(--t-ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s;
+}
+.t-btn:hover { background: var(--t-pink-50); }
+.t-btn svg { width: 15px; height: 15px; }
+
+.t-btn-primary {
+  background: var(--t-rose-mid);
+  border-color: var(--t-rose-mid);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(201,72,116,.2);
+}
+.t-btn-primary:hover { background: var(--t-pink-500); border-color: var(--t-pink-500); }
+
+.t-btn-outline {
+  background: transparent;
+  border-color: var(--t-pink-200);
+  color: var(--t-rose);
+}
+.t-btn-outline:hover { background: var(--t-pink-50); }
+
+.t-btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+.t-btn-danger { color: var(--t-red-600); border-color: var(--t-red-100); }
+.t-btn-danger:hover { background: var(--t-red-100); }
+
+/* ── FORM ────────────────────────────────────────────── */
+.t-field { margin-bottom: 14px; }
+.t-field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--t-muted);
+  margin-bottom: 6px;
+}
+.t-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--t-radius-sm);
+  border: 1px solid var(--t-border);
+  font-family: var(--t-font-body);
+  font-size: 13.5px;
+  color: var(--t-ink);
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+}
+.t-input:focus { border-color: var(--t-pink-400); }
+.t-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.t-field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* ── MODAL ───────────────────────────────────────────── */
+.t-modal {
+  background: var(--t-card);
+  border-radius: var(--t-radius);
+  padding: 28px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+  max-height: 90vh;       /* ← THÊM */
+  overflow-y: auto;        /* ← THÊM */
+  display: flex;           /* ← THÊM */
+  flex-direction: column;  /* ← THÊM */
+}
+.t-modal h2 {
+  font-family: var(--t-font-head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--t-ink);
+  margin: 0 0 20px 0;
+}
+.t-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* ── ERROR INLINE ────────────────────────────────────── */
+.t-error {
+  font-size: 13px;
+  color: var(--t-rose-mid);
+  background: var(--t-pink-50);
+  border: 1px solid var(--t-pink-100);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+/* ── EMPTY STATE ─────────────────────────────────────── */
+.t-empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--t-muted);
+  font-size: 13px;
+}
+.t-empty svg {
+  width: 32px; height: 32px;
+  color: var(--t-faint);
+  margin-bottom: 10px;
+}
+
+/* ── LOADING ─────────────────────────────────────────── */
+.t-loading {
+  text-align: center;
+  padding: 32px;
+  color: var(--t-muted);
+  font-size: 13px;
+}
+
+/* ── DROPZONE ────────────────────────────────────────── */
+.t-dropzone {
+  border: 2px dashed var(--t-pink-200);
+  border-radius: 14px;
+  padding: 30px;
+  text-align: center;
+  background: var(--t-pink-50);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.t-dropzone:hover { border-color: var(--t-pink-400); }
+.t-dropzone svg { width: 26px; height: 26px; color: var(--t-pink-400); margin-bottom: 8px; }
+.t-dropzone p { margin: 0; font-size: 13px; color: var(--t-muted); }
+.t-dropzone b { color: var(--t-rose); }
+
+/* ── FLEX UTILS ──────────────────────────────────────── */
+.t-flex-between { display: flex; align-items: center; justify-content: space-between; }
+.t-flex-gap     { display: flex; align-items: center; gap: 10px; }
+.t-mb16 { margin-bottom: 16px; }
+
+/* ── VOCAB CARD GRID ─────────────────────────────────── */
+.t-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.t-item-card {
+  border: 1px solid var(--t-border);
+  border-radius: 14px;
+  padding: 16px;
+  background: #FFF8FA;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow .15s;
+}
+.t-item-card:hover { box-shadow: var(--t-shadow); }
+.t-item-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--t-border);
+  margin-top: auto;
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .t-page { padding: 16px; }
+  .t-stat-grid { grid-template-columns: 1fr 1fr; }
+  .t-field-row, .t-field-row-3 { grid-template-columns: 1fr; }
+  .t-card-grid { grid-template-columns: 1fr; }
+  .t-topbar h1 { font-size: 18px; }
+}
+@media (max-width: 480px) {
+  .t-stat-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Thêm vào cuối file: src/layouts/teacher.css ── */
+
+/* SEARCH BOX */
+.t-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.t-search-box svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--t-faint);
+  pointer-events: none;
+}
+.t-search-box input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  font-size: 13.5px;
+  border-radius: var(--t-radius-sm);
+  border: 1px solid var(--t-border);
+  font-family: var(--t-font-body);
+  color: var(--t-ink);
+  background: #fff;
+  outline: none;
+}
+.t-search-box input:focus {
+  border-color: var(--t-pink-400);
+}
+
+/* TABLE */
+.t-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.t-table th {
+  text-align: left;
+  color: var(--t-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--t-border);
+  font-family: var(--t-font-body);
+}
+.t-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--t-border);
+  color: var(--t-ink);
+  vertical-align: middle;
+}
+.t-table tr:last-child td {
+  border-bottom: none;
+}
+.t-table tr:hover td {
+  background: var(--t-pink-50);
+}
+
+/* NAME CELL */
+.t-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.t-mini-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--t-lav-200);
+  color: var(--t-lav-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* BADGES */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.badge-mint  { background: var(--t-mint-100);  color: var(--t-mint-600); }
+.badge-amber { background: var(--t-amber-100); color: var(--t-amber-600); }
+.badge-red   { background: var(--t-red-100);   color: var(--t-red-600); }
+.badge-pink  { background: var(--t-pink-100);  color: var(--t-rose); }
+.badge-lav   { background: var(--t-lav-50);    color: var(--t-lav-600); }
+
+/* EMPTY STATE */
+.t-empty {
+  text-align: center;
+  padding: 34px 10px;
+  color: var(--t-muted);
+  font-size: 13px;
+}
+/* ════════════════════════════════════════════════════
+   APPEND vào cuối src/layouts/teacher.css
+   ════════════════════════════════════════════════════ */
+
+/* ── SEARCH BOX ──────────────────────────────────── */
+.t-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.t-search-box svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--t-faint);
+  pointer-events: none;
+}
+.t-search-box input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  font-size: 13.5px;
+  border-radius: var(--t-radius-sm);
+  border: 1px solid var(--t-border);
+  font-family: var(--t-font-body);
+  color: var(--t-ink);
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+}
+.t-search-box input:focus { border-color: var(--t-pink-400); }
+
+/* ── TABLE ───────────────────────────────────────── */
+.t-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.t-table th {
+  text-align: left;
+  color: var(--t-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--t-border);
+  font-family: var(--t-font-body);
+}
+.t-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--t-border);
+  color: var(--t-ink);
+  vertical-align: middle;
+}
+.t-table tr:last-child td { border-bottom: none; }
+.t-table tr:hover td { background: var(--t-pink-50); }
+.t-table th.t-right,
+.t-table td.t-right { text-align: right; }
+
+/* ── NAME CELL ───────────────────────────────────── */
+.t-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.t-mini-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--t-lav-200);
+  color: var(--t-lav-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── BADGES ──────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-mint   { background: var(--t-mint-100);   color: var(--t-mint-600); }
+.badge-amber  { background: var(--t-amber-100);  color: var(--t-amber-600); }
+.badge-red    { background: var(--t-red-100);    color: var(--t-red-600); }
+.badge-pink   { background: var(--t-pink-100);   color: var(--t-rose); }
+.badge-lav    { background: var(--t-lav-50);     color: var(--t-lav-600); }
+
+/* ── BUTTONS ─────────────────────────────────────── */
+.t-btn {
+  font-family: var(--t-font-body);
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: var(--t-radius-sm);
+  padding: 9px 16px;
+  border: 1px solid var(--t-border);
+  background: var(--t-card);
+  color: var(--t-ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: background .12s;
+}
+.t-btn:hover { background: var(--t-pink-50); }
+.t-btn-primary {
+  background: var(--t-rose-mid);
+  border-color: var(--t-rose-mid);
+  color: #fff;
+}
+.t-btn-primary:hover { background: var(--t-pink-500); }
+.t-btn-outline {
+  background: transparent;
+  border-color: var(--t-pink-200);
+  color: var(--t-rose);
+}
+.t-btn-outline:hover { background: var(--t-pink-50); }
+.t-btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+.t-btn-icon {
+  width: 30px; height: 30px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 8px;
+}
+.t-btn-icon svg { width: 14px; height: 14px; }
+.t-btn-danger { color: var(--t-red-600); border-color: var(--t-red-100); }
+.t-btn-danger:hover { background: var(--t-red-100); }
+
+/* ── ACTION GROUP ────────────────────────────────── */
+.t-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* ── EMPTY STATE ─────────────────────────────────── */
+.t-empty {
+  text-align: center;
+  padding: 34px 10px;
+  color: var(--t-muted);
+  font-size: 13px;
+}
+.t-empty svg { width: 30px; height: 30px; color: var(--t-faint); margin-bottom: 8px; }
+
+/* ── GRID CARDS ──────────────────────────────────── */
+.t-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.t-item-card {
+  border: 1px solid var(--t-border);
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--t-pink-50);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.t-item-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.t-item-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--t-ink);
+  margin: 0;
+}
+.t-item-card-desc {
+  font-size: 12.5px;
+  color: var(--t-muted);
+  margin: 0;
+  flex: 1;
+}
+.t-item-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--t-border);
+  font-size: 11px;
+  color: var(--t-muted);
+}
+
+/* ── MODAL ───────────────────────────────────────── */
+.t-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.t-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.15);
+  max-height: 90vh;       /* ← THÊM */
+  overflow-y: auto;        /* ← THÊM */
+  display: flex;           /* ← THÊM */
+  flex-direction: column;  /* ← THÊM */
+}
+.t-modal h3 {
+  font-family: var(--t-font-head);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--t-ink);
+  margin: 0 0 20px 0;
+}
+.t-modal-sm { max-width: 380px; }
+.t-modal-foot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: auto;        /* ← THÊM */
+  padding-top: 12px;       /* ← THÊM */
+  position: sticky;        /* ← THÊM */
+  bottom: 0;               /* ← THÊM */
+  background: #fff;        /* ← THÊM */
+}
+
+/* ── FORM FIELDS ─────────────────────────────────── */
+.t-field { margin-bottom: 14px; }
+.t-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t-muted);
+  margin-bottom: 6px;
+}
+.t-field input,
+.t-field select,
+.t-field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--t-radius-sm);
+  border: 1px solid var(--t-border);
+  font-family: var(--t-font-body);
+  font-size: 13.5px;
+  color: var(--t-ink);
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+}
+.t-field input:focus,
+.t-field select:focus,
+.t-field textarea:focus { border-color: var(--t-pink-400); }
+.t-field textarea { resize: vertical; }
+.t-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.t-field-row3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.t-error {
+  font-size: 13px;
+  color: var(--t-rose-mid);
+  background: #FFF0F5;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+/* ── DROPZONE ────────────────────────────────────── */
+.t-dropzone {
+  border: 2px dashed var(--t-pink-200);
+  border-radius: 14px;
+  padding: 30px;
+  text-align: center;
+  background: var(--t-pink-50);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.t-dropzone:hover { border-color: var(--t-pink-400); }
+.t-dropzone svg { width: 26px; height: 26px; color: var(--t-pink-400); margin-bottom: 8px; }
+.t-dropzone p { margin: 0; font-size: 13px; color: var(--t-muted); }
+.t-dropzone b { color: var(--t-rose); }
+
+/* ── FLEX HELPERS ────────────────────────────────── */
+.t-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.t-gap8 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.t-mt16 { margin-top: 16px; }
+.t-overflow-x { overflow-x: auto; }
+
+/* ── CLASS PILL (trong Students) ─────────────────── */
+.t-class-pill {
+  background: var(--t-pink-50);
+  color: var(--t-rose);
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}

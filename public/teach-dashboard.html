@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PastelClass — Quản lý lớp học tiếng Anh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FBF1F5;
+  --card:#FFFFFF;
+  --pink-50:#FDEEF4;
+  --pink-100:#FBDCE8;
+  --pink-200:#F4B8D0;
+  --pink-400:#E982AC;
+  --pink-500:#E1608F;
+  --pink-600:#C94874;
+  --rose-deep:#9E3459;
+  --lav-50:#EFF2FC;
+  --lav-200:#C9D4F5;
+  --lav-500:#8296E0;
+  --lav-600:#5F73C4;
+  --mint-100:#DDF3E7;
+  --mint-500:#4FB784;
+  --mint-600:#2E9767;
+  --amber-100:#FCEDD3;
+  --amber-500:#E0A93C;
+  --amber-600:#B8842A;
+  --red-100:#FBE1E1;
+  --red-500:#DD6B6B;
+  --red-600:#C24949;
+  --ink:#332C35;
+  --muted:#8E8492;
+  --faint:#B9AEBE;
+  --border:#F1DDE8;
+  --radius:16px;
+  --radius-sm:10px;
+  --shadow:0 4px 18px rgba(196,90,140,0.08);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:'Inter',sans-serif;
+  color:var(--ink);
+}
+h1,h2,h3,.brand,.navlabel,.stat-label,.section-title{font-family:'Quicksand',sans-serif;}
+.app{display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{
+  width:230px;
+  flex-shrink:0;
+  background:var(--card);
+  border-right:1px solid var(--border);
+  padding:24px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.brand{
+  display:flex;align-items:center;gap:10px;
+  font-size:19px;font-weight:700;color:var(--rose-deep);
+  padding:4px 10px 22px 10px;
+}
+.brand .dot{width:12px;height:12px;border-radius:50%;background:var(--pink-400);display:inline-block;}
+.navitem{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 14px;border-radius:12px;
+  color:var(--muted);font-size:14.5px;font-weight:600;
+  cursor:pointer;user-select:none;border:1px solid transparent;
+}
+.navitem svg{width:18px;height:18px;flex-shrink:0;}
+.navitem:hover{background:var(--pink-50);color:var(--rose-deep);}
+.navitem.active{background:var(--pink-100);color:var(--rose-deep);border-color:var(--pink-200);}
+.sidebar-foot{
+  margin-top:auto;padding:14px;border-radius:14px;background:var(--pink-50);
+  font-size:12.5px;color:var(--muted);line-height:1.5;
+}
+.sidebar-foot b{color:var(--rose-deep);}
+
+/* MAIN */
+.main{flex:1;padding:26px 32px;max-width:1180px;}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;}
+.topbar h1{font-size:22px;margin:0 0 4px 0;color:var(--ink);}
+.topbar p{margin:0;color:var(--muted);font-size:13.5px;}
+.teacher-chip{
+  display:flex;align-items:center;gap:10px;background:var(--card);
+  border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;
+}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--pink-200);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--rose-deep);font-size:13px;}
+.teacher-chip span{font-size:13px;font-weight:600;color:var(--ink);}
+
+.page{display:none;}
+.page.active{display:block;}
+
+/* CARD */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;box-shadow:var(--shadow);
+}
+.section-title{font-size:15.5px;font-weight:700;color:var(--ink);margin:0 0 14px 0;display:flex;align-items:center;justify-content:space-between;}
+.section-title small{font-family:'Inter';font-size:12px;font-weight:500;color:var(--muted);}
+
+/* STAT GRID */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.stat-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.stat-icon svg{width:17px;height:17px;}
+.stat-label{font-size:12px;color:var(--muted);font-weight:600;margin:0 0 4px 0;}
+.stat-value{font-size:24px;font-weight:700;color:var(--ink);margin:0;}
+.stat-delta{font-size:11.5px;font-weight:600;margin-top:4px;}
+.up{color:var(--mint-600);}
+.down{color:var(--red-600);}
+
+/* GRID LAYOUT */
+.grid-2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{
+  text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--border);
+}
+td{padding:10px 10px;border-bottom:1px solid var(--border);color:var(--ink);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--pink-50);}
+.name-cell{display:flex;align-items:center;gap:10px;}
+.mini-avatar{width:28px;height:28px;border-radius:50%;background:var(--lav-200);color:var(--lav-600);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:700;}
+.badge-mint{background:var(--mint-100);color:var(--mint-600);}
+.badge-amber{background:var(--amber-100);color:var(--amber-600);}
+.badge-red{background:var(--red-100);color:var(--red-600);}
+.badge-pink{background:var(--pink-100);color:var(--rose-deep);}
+.badge-lav{background:var(--lav-50);color:var(--lav-600);}
+
+/* PROGRESS RING */
+.ring{position:relative;width:40px;height:40px;}
+.ring svg{transform:rotate(-90deg);}
+.ring text{display:none;}
+.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:var(--ink);}
+
+/* PROGRESS BAR */
+.bar-track{width:100%;height:7px;background:var(--pink-50);border-radius:999px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--pink-400);border-radius:999px;}
+
+/* BUTTONS */
+.btn{
+  font-family:'Inter';font-weight:600;font-size:13px;border-radius:10px;padding:9px 16px;
+  border:1px solid var(--border);background:var(--card);color:var(--ink);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn:hover{background:var(--pink-50);}
+.btn-primary{background:var(--pink-400);border-color:var(--pink-400);color:#fff;}
+.btn-primary:hover{background:var(--pink-500);}
+.btn-outline{background:transparent;border-color:var(--pink-200);color:var(--rose-deep);}
+.btn-outline:hover{background:var(--pink-50);}
+.btn-sm{padding:6px 11px;font-size:12px;border-radius:8px;}
+.btn-icon{width:30px;height:30px;padding:0;justify-content:center;border-radius:8px;}
+.btn-icon svg{width:14px;height:14px;}
+.icon-btn-danger{color:var(--red-600);border-color:var(--red-100);}
+.icon-btn-danger:hover{background:var(--red-100);}
+
+/* FORM */
+label{font-size:12.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);
+  font-family:'Inter';font-size:13.5px;color:var(--ink);background:#fff;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pink-400);}
+.field{margin-bottom:14px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+
+/* TOP FILTER BAR */
+.filter-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.filter-bar select{width:auto;padding:8px 12px;font-size:13px;}
+.search-box{position:relative;flex:1;min-width:200px;}
+.search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--faint);}
+.search-box input{padding-left:34px;}
+
+/* TABS (sub navigation) */
+.subtabs{display:flex;gap:8px;margin-bottom:18px;background:var(--pink-50);padding:5px;border-radius:12px;width:fit-content;}
+.subtab{padding:8px 18px;border-radius:9px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;}
+.subtab.active{background:#fff;color:var(--rose-deep);box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.subpage{display:none;}
+.subpage.active{display:block;}
+
+/* Level pills */
+.level-pills{display:flex;gap:8px;flex-wrap:wrap;}
+.level-pill{padding:7px 14px;border-radius:999px;border:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;}
+.level-pill.selected{background:var(--lav-500);border-color:var(--lav-500);color:#fff;}
+
+/* Vocab table */
+.vocab-table th,.vocab-table td{padding:8px 8px;}
+.vocab-table input, .vocab-table select{padding:7px 9px;font-size:12.5px;}
+.pron-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--lav-50);color:var(--lav-600);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.pron-btn svg{width:13px;height:13px;}
+
+/* Assignment 4 parts */
+.part-card{border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:12px;background:#fff;}
+.part-head{display:flex;align-items:center;justify-content:space-between;}
+.part-title{display:flex;align-items:center;gap:10px;}
+.part-num{width:26px;height:26px;border-radius:8px;background:var(--pink-100);color:var(--rose-deep);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.part-title b{font-size:13.5px;}
+.part-title span{font-size:12px;color:var(--muted);display:block;}
+.switch{position:relative;width:38px;height:22px;background:var(--border);border-radius:999px;cursor:pointer;flex-shrink:0;}
+.switch.on{background:var(--mint-500);}
+.switch .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.15s;}
+.switch.on .knob{left:18px;}
+.part-body{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{background:var(--pink-50);border:1px solid var(--pink-100);color:var(--rose-deep);font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;}
+.chip.lav{background:var(--lav-50);border-color:var(--lav-200);color:var(--lav-600);}
+
+/* Empty */
+.empty{text-align:center;padding:34px 10px;color:var(--muted);font-size:13px;}
+.empty svg{width:30px;height:30px;color:var(--faint);margin-bottom:8px;}
+
+/* Upload dropzone */
+.dropzone{border:2px dashed var(--pink-200);border-radius:14px;padding:30px;text-align:center;background:var(--pink-50);cursor:pointer;}
+.dropzone svg{width:26px;height:26px;color:var(--pink-400);margin-bottom:8px;}
+.dropzone p{margin:0;font-size:13px;color:var(--muted);}
+.dropzone b{color:var(--rose-deep);}
+
+.flex-between{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.gap8{display:flex;gap:8px;}
+.mt16{margin-top:16px;}
+.hint{font-size:12px;color:var(--muted);margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand"><span class="dot"></span>PastelClass</div>
+
+    <div class="navitem active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+      Dashboard
+    </div>
+    <div class="navitem" data-page="students">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.6 2.9-6 5.5-6s5.5 2.4 5.5 6"/><circle cx="17.5" cy="8.5" r="2.4"/><path d="M15 14.2c2.1.3 4.5 1.9 4.5 5.8"/></svg>
+      Quản lý học sinh
+    </div>
+    <div class="navitem" data-page="homework">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 12h6M9 16h6M9 8h3"/></svg>
+      Quản lý bài tập
+    </div>
+    <div class="navitem" data-page="vocab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h5"/></svg>
+      Bài tập từ vựng
+    </div>
+    <div class="navitem" data-page="other">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M5 8l7-6 7 6M8 12a4 4 0 1 0 8 0"/></svg>
+      Bài tập khác
+    </div>
+
+    <div class="sidebar-foot">
+      Học kỳ hiện tại: <b>Hè 2026</b><br>4 lớp · 62 học sinh
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ============ DASHBOARD ============ -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <div>
+          <h1>Chào cô Hà 👋</h1>
+          <p>Tổng quan tiến độ và kết quả bài tập về nhà — cập nhật hôm nay, 23/08/2026</p>
+        </div>
+        <div class="teacher-chip"><div class="avatar">TH</div><span>Cô Hà · GV Tiếng Anh</span></div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-top"><span class="stat-label">Tổng học sinh</span>
+            <div class="stat-icon" style="background:var(--pink-100)"><svg viewBox="0 0 24 24" fill="none" stroke="#C94874" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.6 2.9-6 5.5-6s5.5 2.4 5.5 6"/></svg></div>
+          </div>
+          <p class="stat-value">62</p><span class="stat-delta up">+4 tuần này</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-top"><span class="stat-label">Bài tập đang giao</span>
+            <div class="stat-icon" style="background:var(--lav-50)"><svg viewBox="0 0 24 24" fill="none" stroke="#5F73C4" stroke-width="2"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg></div>
+          </div>
+          <p class="stat-value">8</p><span class="stat-delta" style="color:var(--muted)">3 lớp đang làm</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-top"><span class="stat-label">Hoàn thành TB</span>
+            <div class="stat-icon" style="background:var(--mint-100)"><svg viewBox="0 0 24 24" fill="none" stroke="#2E9767" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+          </div>
+          <p class="stat-value">78%</p><span class="stat-delta up">▲ 6% so với tuần trước</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-top"><span class="stat-label">Điểm trung bình</span>
+            <div class="stat-icon" style="background:var(--amber-100)"><svg viewBox="0 0 24 24" fill="none" stroke="#B8842A" stroke-width="2"><path d="M12 2l3 6.5 7 .9-5.1 4.9 1.3 7-6.2-3.4-6.2 3.4 1.3-7L2 9.4l7-.9z"/></svg></div>
+          </div>
+          <p class="stat-value">8.1<span style="font-size:14px;color:var(--muted)">/10</span></p><span class="stat-delta down">▼ 0.2 so với tuần trước</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Kết quả làm bài của học sinh <small>Bài tập tuần này</small></div>
+        <div class="filter-bar">
+          <select id="dashClassFilter" onchange="renderDashTable()">
+            <option value="all">Tất cả lớp</option>
+            <option value="A2-Sang">A2 - Sáng T3/T5</option>
+            <option value="B1-Toi">B1 - Tối T2/T4</option>
+            <option value="Kids-A1">Kids A1 - CN</option>
+          </select>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input id="dashSearch" type="text" placeholder="Tìm tên học sinh..." oninput="renderDashTable()">
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Học sinh</th><th>Lớp</th><th>Bài tập</th><th>Điểm số</th><th>Thời gian làm</th><th>Mức độ hoàn thành</th><th>Trạng thái</th></tr></thead>
+          <tbody id="dashTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ STUDENTS ============ -->
+    <div class="page" id="page-students">
+      <div class="topbar">
+        <div><h1>Quản lý học sinh</h1><p>Theo dõi sĩ số theo lớp, thêm/bớt học sinh và học phí</p></div>
+        <button class="btn btn-primary" onclick="toggleAddStudent()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+          Thêm học sinh
+        </button>
+      </div>
+
+      <div class="stat-grid" id="classSummaryGrid"></div>
+
+      <div class="card" id="addStudentCard" style="display:none;margin-bottom:16px;">
+        <div class="section-title">Thêm học sinh mới</div>
+        <div class="field-row">
+          <div class="field"><label>Họ và tên</label><input type="text" id="newStuName" placeholder="Nguyễn Văn A"></div>
+          <div class="field"><label>Lớp</label>
+            <select id="newStuClass"><option>A2 - Sáng T3/T5</option><option>B1 - Tối T2/T4</option><option>Kids A1 - CN</option></select>
+          </div>
+          <div class="field"><label>Học phí (VNĐ/tháng)</label><input type="number" id="newStuFee" placeholder="1500000"></div>
+        </div>
+        <div class="gap8"><button class="btn btn-primary" onclick="addStudent()">Lưu học sinh</button><button class="btn" onclick="toggleAddStudent()">Hủy</button></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Danh sách học sinh <small id="stuCount"></small></div>
+        <div class="filter-bar">
+          <select id="stuClassFilter" onchange="renderStudentTable()">
+            <option value="all">Tất cả lớp</option>
+            <option value="A2 - Sáng T3/T5">A2 - Sáng T3/T5</option>
+            <option value="B1 - Tối T2/T4">B1 - Tối T2/T4</option>
+            <option value="Kids A1 - CN">Kids A1 - CN</option>
+          </select>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input id="stuSearch" type="text" placeholder="Tìm học sinh..." oninput="renderStudentTable()">
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Học sinh</th><th>Lớp</th><th>Ngày tham gia</th><th>Học phí/tháng</th><th>Trạng thái đóng phí</th><th></th></tr></thead>
+          <tbody id="studentTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ HOMEWORK MANAGEMENT ============ -->
+    <div class="page" id="page-homework">
+      <div class="topbar">
+        <div><h1>Quản lý bài tập về nhà</h1><p>Giao bài, tạm dừng, chỉnh sửa hoặc xóa bài tập đã tạo</p></div>
+      </div>
+      <div class="card">
+        <div class="filter-bar">
+          <select id="hwTypeFilter" onchange="renderHwTable()">
+            <option value="all">Tất cả loại</option>
+            <option value="Từ vựng">Từ vựng</option>
+            <option value="Listening">Listening</option>
+            <option value="Grammar">Grammar</option>
+          </select>
+          <select id="hwStatusFilter" onchange="renderHwTable()">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="Đang diễn ra">Đang diễn ra</option>
+            <option value="Tạm dừng">Tạm dừng</option>
+            <option value="Đã đóng">Đã đóng</option>
+          </select>
+        </div>
+        <table>
+          <thead><tr><th>Tên bài tập</th><th>Loại</th><th>Lớp giao</th><th>Ngày giao</th><th>Hạn nộp</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead>
+          <tbody id="hwTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ VOCAB ASSIGNMENT ============ -->
+    <div class="page" id="page-vocab">
+      <div class="topbar"><div><h1>Bài tập từ vựng</h1><p>Tạo danh sách từ vựng và giao bài tập ôn luyện 4 phần</p></div></div>
+
+      <div class="card mt16">
+        <div class="section-title">Thông tin bài tập</div>
+        <div class="field-row">
+          <div class="field"><label>Chủ đề</label><input type="text" id="vocTopic" placeholder="VD: Animals - Động vật"></div>
+          <div class="field"><label>Lớp giao</label><select><option>A2 - Sáng T3/T5</option><option>B1 - Tối T2/T4</option><option>Kids A1 - CN</option></select></div>
+          <div class="field"><label>Tag</label><select><option>Chưa chọn</option><option>Ôn tập</option><option>Bài mới</option><option>Kiểm tra</option></select></div>
+        </div>
+        <div class="field">
+          <label>Mức độ (CEFR)</label>
+          <div class="level-pills" id="levelPills">
+            <div class="level-pill" data-level="A1">A1</div>
+            <div class="level-pill selected" data-level="A2">A2</div>
+            <div class="level-pill" data-level="B1">B1</div>
+            <div class="level-pill" data-level="B2">B2</div>
+            <div class="level-pill" data-level="C1">C1</div>
+            <div class="level-pill" data-level="C2">C2</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt16">
+        <div class="flex-between" style="margin-bottom:10px;">
+          <div class="section-title" style="margin:0;">Danh sách từ vựng <small id="vocCount"></small></div>
+          <div class="gap8">
+            <button class="btn btn-sm btn-outline" onclick="addVocabRow()">+ Thêm từ</button>
+            <button class="btn btn-sm" onclick="alert('Tính năng tạo từ vựng bằng AI — kết nối mô hình gợi ý từ theo chủ đề và mức độ đã chọn.')">✨ Tạo từ bằng AI</button>
+          </div>
+        </div>
+        <table class="vocab-table">
+          <thead><tr><th style="width:26px">#</th><th>Từ (EN)</th><th>Nghĩa (VI)</th><th>Từ loại</th><th>Phiên âm (IPA)</th><th style="width:60px">Phát âm</th><th style="width:34px"></th></tr></thead>
+          <tbody id="vocabTableBody"></tbody>
+        </table>
+        <p class="hint">Nhấn nút phát âm 🔊 để nghe thử giọng đọc Anh-Mỹ trước khi giao cho học sinh.</p>
+      </div>
+
+      <div class="card mt16">
+        <div class="section-title">Giao bài — 4 phần luyện tập</div>
+
+        <div class="part-card">
+          <div class="part-head">
+            <div class="part-title"><div class="part-num">1</div><div><b>Tổng ôn tập từ vựng</b><span>Flashcard toàn bộ danh sách từ đã thêm ở trên</span></div></div>
+            <div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+          </div>
+          <div class="part-body"><div class="chip-row" id="reviewChips"></div></div>
+        </div>
+
+        <div class="part-card">
+          <div class="part-head">
+            <div class="part-title"><div class="part-num">2</div><div><b>Nối ghép từ</b><span>Học sinh nối từ tiếng Anh với nghĩa tiếng Việt tương ứng</span></div></div>
+            <div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+          </div>
+          <div class="part-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:420px;">
+              <div class="chip-row" id="matchLeft"></div>
+              <div class="chip-row" id="matchRight"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="part-card">
+          <div class="part-head">
+            <div class="part-title"><div class="part-num">3</div><div><b>Ghi nghĩa Anh — Việt</b><span>Học sinh tự gõ nghĩa tiếng Việt cho từng từ tiếng Anh</span></div></div>
+            <div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+          </div>
+          <div class="part-body">
+            <label style="margin-bottom:4px;">Xem trước</label>
+            <div style="font-size:13px;color:var(--muted);">"cat" → <input type="text" style="width:160px;display:inline-block;" placeholder="học sinh nhập..." disabled></div>
+          </div>
+        </div>
+
+        <div class="part-card">
+          <div class="part-head">
+            <div class="part-title"><div class="part-num">4</div><div><b>Trắc nghiệm</b><span>Câu hỏi thông hiểu và vận dụng, tạo tự động từ danh sách từ</span></div></div>
+            <div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+          </div>
+          <div class="part-body">
+            <div class="field-row" style="grid-template-columns:1fr 1fr;">
+              <div class="field" style="margin-bottom:0;"><label>Số câu — Thông hiểu</label><input type="number" value="5"></div>
+              <div class="field" style="margin-bottom:0;"><label>Số câu — Vận dụng</label><input type="number" value="3"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gap8" style="margin-top:6px;">
+          <button class="btn btn-primary" onclick="assignVocab()">Giao bài tập</button>
+          <button class="btn">Lưu nháp</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OTHER EXERCISES ============ -->
+    <div class="page" id="page-other">
+      <div class="topbar"><div><h1>Bài tập khác</h1><p>Listening và Grammar cho học sinh</p></div></div>
+
+      <div class="subtabs">
+        <div class="subtab active" data-sub="listening">Listening</div>
+        <div class="subtab" data-sub="grammar">Grammar</div>
+      </div>
+
+      <div class="subpage active" id="sub-listening">
+        <div class="card">
+          <div class="section-title">Tải audio / video bài nghe</div>
+          <div class="dropzone" onclick="alert('Chọn file audio/mp3 hoặc video từ máy tính để tải lên.')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+            <p><b>Nhấn để tải lên</b> hoặc kéo thả file MP3 / MP4 vào đây</p>
+          </div>
+          <div class="field-row mt16">
+            <div class="field"><label>Tên bài nghe</label><input type="text" placeholder="VD: Daily Conversation - Ordering Coffee"></div>
+            <div class="field"><label>Lớp giao</label><select><option>A2 - Sáng T3/T5</option><option>B1 - Tối T2/T4</option><option>Kids A1 - CN</option></select></div>
+            <div class="field"><label>Mức độ</label><select><option>A1</option><option selected>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option></select></div>
+          </div>
+          <button class="btn btn-primary">Giao bài nghe</button>
+        </div>
+
+        <div class="card mt16">
+          <div class="section-title">Bài nghe đã tải lên</div>
+          <table>
+            <thead><tr><th>Tên file</th><th>Định dạng</th><th>Lớp</th><th>Mức độ</th><th>Trạng thái</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>Ordering Coffee.mp3</td><td><span class="badge badge-lav">MP3</span></td><td>A2 - Sáng T3/T5</td><td>A2</td><td><span class="badge badge-mint">Đang giao</span></td>
+                <td style="text-align:right"><button class="btn btn-icon icon-btn-danger" onclick="this.closest('tr').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg></button></td></tr>
+              <tr><td>At the Airport.mp4</td><td><span class="badge badge-lav">MP4</span></td><td>B1 - Tối T2/T4</td><td>B1</td><td><span class="badge badge-amber">Tạm dừng</span></td>
+                <td style="text-align:right"><button class="btn btn-icon icon-btn-danger" onclick="this.closest('tr').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="subpage" id="sub-grammar">
+        <div class="card">
+          <div class="section-title">Tạo bài tập ngữ pháp</div>
+          <div class="field-row">
+            <div class="field"><label>Chuyên đề ngữ pháp</label><input type="text" placeholder="VD: Present Perfect Tense"></div>
+            <div class="field"><label>Lớp giao</label><select><option>A2 - Sáng T3/T5</option><option>B1 - Tối T2/T4</option><option>Kids A1 - CN</option></select></div>
+            <div class="field"><label>Mức độ</label><select><option>A1</option><option>A2</option><option selected>B1</option><option>B2</option><option>C1</option><option>C2</option></select></div>
+          </div>
+          <div class="field">
+            <label>Từ vựng tích hợp (tùy chọn)</label>
+            <div class="chip-row">
+              <span class="chip lav">already</span><span class="chip lav">yet</span><span class="chip lav">since</span><span class="chip lav">for</span>
+              <span class="chip lav" style="background:transparent;border-style:dashed;cursor:pointer;">+ thêm từ</span>
+            </div>
+          </div>
+          <button class="btn btn-primary">Giao bài ngữ pháp</button>
+        </div>
+
+        <div class="card mt16">
+          <div class="section-title">Bài ngữ pháp đã giao</div>
+          <table>
+            <thead><tr><th>Chuyên đề</th><th>Lớp</th><th>Mức độ</th><th>Trạng thái</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>Present Simple vs Continuous</td><td>Kids A1 - CN</td><td>A1</td><td><span class="badge badge-mint">Đang giao</span></td>
+                <td style="text-align:right"><button class="btn btn-icon icon-btn-danger" onclick="this.closest('tr').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ---------- NAV ---------- */
+document.querySelectorAll('.navitem').forEach(item=>{
+  item.addEventListener('click',()=>{
+    document.querySelectorAll('.navitem').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+item.dataset.page).classList.add('active');
+  });
+});
+document.querySelectorAll('.subtab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.subtab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.subpage').forEach(p=>p.classList.remove('active'));
+    document.getElementById('sub-'+tab.dataset.sub).classList.add('active');
+  });
+});
+document.querySelectorAll('.level-pill').forEach(p=>{
+  p.addEventListener('click',()=>{
+    document.querySelectorAll('.level-pill').forEach(x=>x.classList.remove('selected'));
+    p.classList.add('selected');
+  });
+});
+
+/* ---------- DASHBOARD DATA ---------- */
+const dashData=[
+ {name:"Trần Minh Anh",cls:"A2-Sang",clsLabel:"A2 - Sáng T3/T5",hw:"Từ vựng: Animals",score:9.2,time:"12 phút",done:100,status:"Hoàn thành"},
+ {name:"Lê Gia Bảo",cls:"A2-Sang",clsLabel:"A2 - Sáng T3/T5",hw:"Từ vựng: Animals",score:7.5,time:"18 phút",done:100,status:"Hoàn thành"},
+ {name:"Nguyễn Thu Hà",cls:"B1-Toi",clsLabel:"B1 - Tối T2/T4",hw:"Grammar: Present Perfect",score:6.8,time:"25 phút",done:80,status:"Đang làm"},
+ {name:"Phạm Đức Long",cls:"B1-Toi",clsLabel:"B1 - Tối T2/T4",hw:"Grammar: Present Perfect",score:null,time:"—",done:0,status:"Chưa làm"},
+ {name:"Đỗ Khánh Ly",cls:"Kids-A1",clsLabel:"Kids A1 - CN",hw:"Listening: Coffee Order",score:8.4,time:"9 phút",done:100,status:"Hoàn thành"},
+ {name:"Vũ Hoàng Nam",cls:"Kids-A1",clsLabel:"Kids A1 - CN",hw:"Listening: Coffee Order",score:5.6,time:"15 phút",done:60,status:"Đang làm"},
+];
+function statusBadge(s){
+  if(s==="Hoàn thành") return '<span class="badge badge-mint">Hoàn thành</span>';
+  if(s==="Đang làm") return '<span class="badge badge-amber">Đang làm</span>';
+  return '<span class="badge badge-red">Chưa làm</span>';
+}
+function ring(pct){
+  const r=15,c=2*Math.PI*r,off=c-(pct/100)*c;
+  const color = pct>=80?'#4FB784':pct>=40?'#E0A93C':'#DD6B6B';
+  return `<div class="ring"><svg width="40" height="40"><circle cx="20" cy="20" r="${r}" stroke="#F1DDE8" stroke-width="4" fill="none"/><circle cx="20" cy="20" r="${r}" stroke="${color}" stroke-width="4" fill="none" stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round"/></svg><div class="ring-label">${pct}%</div></div>`;
+}
+function initials(n){return n.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();}
+function renderDashTable(){
+  const cls=document.getElementById('dashClassFilter').value;
+  const q=document.getElementById('dashSearch').value.toLowerCase();
+  const rows=dashData.filter(d=>(cls==='all'||d.cls===cls)&&d.name.toLowerCase().includes(q));
+  document.getElementById('dashTableBody').innerHTML = rows.length? rows.map(d=>`
+    <tr>
+      <td><div class="name-cell"><div class="mini-avatar">${initials(d.name)}</div>${d.name}</div></td>
+      <td>${d.clsLabel}</td>
+      <td>${d.hw}</td>
+      <td>${d.score!==null?d.score.toFixed(1):'—'}</td>
+      <td>${d.time}</td>
+      <td>${ring(d.done)}</td>
+      <td>${statusBadge(d.status)}</td>
+    </tr>`).join('') : `<tr><td colspan="7"><div class="empty">Không tìm thấy học sinh phù hợp.</div></td></tr>`;
+}
+renderDashTable();
+
+/* ---------- STUDENTS ---------- */
+let students=[
+ {name:"Trần Minh Anh",cls:"A2 - Sáng T3/T5",joined:"12/01/2026",fee:1500000,paid:true},
+ {name:"Lê Gia Bảo",cls:"A2 - Sáng T3/T5",joined:"12/01/2026",fee:1500000,paid:true},
+ {name:"Nguyễn Thu Hà",cls:"B1 - Tối T2/T4",joined:"03/02/2026",fee:1800000,paid:false},
+ {name:"Phạm Đức Long",cls:"B1 - Tối T2/T4",joined:"03/02/2026",fee:1800000,paid:true},
+ {name:"Đỗ Khánh Ly",cls:"Kids A1 - CN",joined:"20/03/2026",fee:1200000,paid:false},
+ {name:"Vũ Hoàng Nam",cls:"Kids A1 - CN",joined:"20/03/2026",fee:1200000,paid:true},
+];
+function toggleAddStudent(){
+  const c=document.getElementById('addStudentCard');
+  c.style.display=c.style.display==='none'?'block':'none';
+}
+function addStudent(){
+  const name=document.getElementById('newStuName').value.trim();
+  const cls=document.getElementById('newStuClass').value;
+  const fee=parseInt(document.getElementById('newStuFee').value)||0;
+  if(!name){alert('Vui lòng nhập tên học sinh.');return;}
+  students.push({name,cls,joined:new Date().toLocaleDateString('vi-VN'),fee,paid:false});
+  document.getElementById('newStuName').value='';document.getElementById('newStuFee').value='';
+  toggleAddStudent();renderStudentTable();renderClassSummary();
+}
+function removeStudent(i){students.splice(i,1);renderStudentTable();renderClassSummary();}
+function togglePaid(i){students[i].paid=!students[i].paid;renderStudentTable();}
+function renderClassSummary(){
+  const classes={};
+  students.forEach(s=>classes[s.cls]=(classes[s.cls]||0)+1);
+  const icons=['#F4B8D0','#C9D4F5','#DDF3E7'];
+  let html='';let idx=0;
+  for(const c in classes){
+    html+=`<div class="stat-card"><div class="stat-top"><span class="stat-label">${c}</span></div><p class="stat-value">${classes[c]}<span style="font-size:13px;color:var(--muted);"> học sinh</span></p></div>`;
+    idx++;
+  }
+  html+=`<div class="stat-card" style="background:var(--pink-50);border-style:dashed;"><div class="stat-top"><span class="stat-label">Tổng cộng</span></div><p class="stat-value">${students.length}<span style="font-size:13px;color:var(--muted);"> học sinh</span></p></div>`;
+  document.getElementById('classSummaryGrid').innerHTML=html;
+}
+function renderStudentTable(){
+  const cls=document.getElementById('stuClassFilter').value;
+  const q=document.getElementById('stuSearch').value.toLowerCase();
+  document.getElementById('stuCount').textContent=`(${students.length} học sinh)`;
+  const rowsHtml=students.map((s,i)=>({s,i})).filter(({s})=>(cls==='all'||s.cls===cls)&&s.name.toLowerCase().includes(q));
+  document.getElementById('studentTableBody').innerHTML = rowsHtml.length? rowsHtml.map(({s,i})=>`
+    <tr>
+      <td><div class="name-cell"><div class="mini-avatar">${initials(s.name)}</div>${s.name}</div></td>
+      <td>${s.cls}</td>
+      <td>${s.joined}</td>
+      <td>${s.fee.toLocaleString('vi-VN')}đ</td>
+      <td><span class="badge ${s.paid?'badge-mint':'badge-amber'}" style="cursor:pointer" onclick="togglePaid(${i})">${s.paid?'Đã đóng':'Chưa đóng'}</span></td>
+      <td style="text-align:right"><button class="btn btn-icon icon-btn-danger" onclick="removeStudent(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg></button></td>
+    </tr>`).join('') : `<tr><td colspan="6"><div class="empty">Chưa có học sinh trong lớp này.</div></td></tr>`;
+}
+renderClassSummary();renderStudentTable();
+
+/* ---------- HOMEWORK MANAGEMENT ---------- */
+let homeworks=[
+ {name:"Từ vựng: Animals",type:"Từ vựng",cls:"A2 - Sáng T3/T5",given:"18/08/2026",due:"25/08/2026",status:"Đang diễn ra"},
+ {name:"Grammar: Present Perfect",type:"Grammar",cls:"B1 - Tối T2/T4",given:"17/08/2026",due:"24/08/2026",status:"Đang diễn ra"},
+ {name:"Listening: Coffee Order",type:"Listening",cls:"Kids A1 - CN",given:"15/08/2026",due:"22/08/2026",status:"Tạm dừng"},
+ {name:"Từ vựng: Food & Drink",type:"Từ vựng",cls:"A2 - Sáng T3/T5",given:"05/08/2026",due:"12/08/2026",status:"Đã đóng"},
+];
+function hwBadge(s){
+  if(s==="Đang diễn ra")return'<span class="badge badge-mint">Đang diễn ra</span>';
+  if(s==="Tạm dừng")return'<span class="badge badge-amber">Tạm dừng</span>';
+  return'<span class="badge badge-red">Đã đóng</span>';
+}
+function toggleHwStatus(i){
+  homeworks[i].status = homeworks[i].status==="Đang diễn ra" ? "Tạm dừng" : "Đang diễn ra";
+  renderHwTable();
+}
+function removeHw(i){homeworks.splice(i,1);renderHwTable();}
+function renderHwTable(){
+  const t=document.getElementById('hwTypeFilter').value;
+  const s=document.getElementById('hwStatusFilter').value;
+  const rows=homeworks.map((h,i)=>({h,i})).filter(({h})=>(t==='all'||h.type===t)&&(s==='all'||h.status===s));
+  document.getElementById('hwTableBody').innerHTML = rows.length? rows.map(({h,i})=>`
+    <tr>
+      <td><b>${h.name}</b></td>
+      <td><span class="badge badge-lav">${h.type}</span></td>
+      <td>${h.cls}</td>
+      <td>${h.given}</td>
+      <td>${h.due}</td>
+      <td>${hwBadge(h.status)}</td>
+      <td style="text-align:right">
+        <div class="gap8" style="justify-content:flex-end;">
+          <button class="btn btn-sm btn-outline" onclick="toggleHwStatus(${i})">${h.status==='Đang diễn ra'?'Dừng':'Giao lại'}</button>
+          <button class="btn btn-sm">Sửa</button>
+          <button class="btn btn-icon icon-btn-danger" onclick="removeHw(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg></button>
+        </div>
+      </td>
+    </tr>`).join('') : `<tr><td colspan="7"><div class="empty">Không có bài tập phù hợp bộ lọc.</div></td></tr>`;
+}
+renderHwTable();
+
+/* ---------- VOCAB ---------- */
+let vocabRows=[
+ {en:"cat",vi:"con mèo",pos:"Danh từ",ipa:"/kæt/"},
+ {en:"dog",vi:"con chó",pos:"Danh từ",ipa:"/dɒɡ/"},
+ {en:"run",vi:"chạy",pos:"Động từ",ipa:"/rʌn/"},
+];
+function addVocabRow(){vocabRows.push({en:"",vi:"",pos:"Danh từ",ipa:""});renderVocabTable();}
+function removeVocabRow(i){vocabRows.splice(i,1);renderVocabTable();renderPreviews();}
+function updateVocab(i,field,val){vocabRows[i][field]=val;renderPreviews();}
+function speak(word){
+  if(!word){return;}
+  try{const u=new SpeechSynthesisUtterance(word);u.lang='en-US';speechSynthesis.speak(u);}catch(e){}
+}
+function renderVocabTable(){
+  document.getElementById('vocCount').textContent=`(${vocabRows.length}/200 từ)`;
+  document.getElementById('vocabTableBody').innerHTML=vocabRows.map((v,i)=>`
+    <tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><input type="text" value="${v.en}" oninput="updateVocab(${i},'en',this.value)" placeholder="word"></td>
+      <td><input type="text" value="${v.vi}" oninput="updateVocab(${i},'vi',this.value)" placeholder="nghĩa"></td>
+      <td><select onchange="updateVocab(${i},'pos',this.value)">
+        ${['Danh từ','Động từ','Tính từ','Trạng từ','Giới từ'].map(p=>`<option ${v.pos===p?'selected':''}>${p}</option>`).join('')}
+      </select></td>
+      <td><input type="text" value="${v.ipa}" oninput="updateVocab(${i},'ipa',this.value)" placeholder="/.../"></td>
+      <td><div class="pron-btn" onclick="speak('${v.en}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg></div></td>
+      <td><button class="btn btn-icon icon-btn-danger" onclick="removeVocabRow(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg></button></td>
+    </tr>`).join('');
+  renderPreviews();
+}
+function renderPreviews(){
+  document.getElementById('reviewChips').innerHTML = vocabRows.filter(v=>v.en).map(v=>`<span class="chip">${v.en}</span>`).join('') || `<span style="font-size:12px;color:var(--muted)">Chưa có từ vựng</span>`;
+  document.getElementById('matchLeft').innerHTML = vocabRows.filter(v=>v.en).map(v=>`<span class="chip">${v.en}</span>`).join('');
+  document.getElementById('matchRight').innerHTML = vocabRows.filter(v=>v.vi).slice().sort(()=>Math.random()-0.5).map(v=>`<span class="chip lav">${v.vi}</span>`).join('');
+}
+function assignVocab(){
+  const topic=document.getElementById('vocTopic').value.trim();
+  if(!topic){alert('Vui lòng nhập chủ đề bài tập.');return;}
+  if(vocabRows.length===0){alert('Vui lòng thêm ít nhất 1 từ vựng.');return;}
+  alert(`Đã giao bài tập từ vựng "${topic}" với ${vocabRows.length} từ, gồm 4 phần luyện tập cho lớp đã chọn.`);
+}
+renderVocabTable();
+</script>
+</body>
+</html>
