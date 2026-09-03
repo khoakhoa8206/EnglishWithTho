@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { studentService } from '../../services/student/studentService';
 import { teacherDocumentService } from '../../services/teacherDocumentService';
+import { fileArchiveService } from '../../services/fileArchiveService';
+import FileArchiveDrawer from '../../components/common/FileArchiveDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import Loading from '@/components/common/Loading';
 import ErrorState from '@/components/common/ErrorState';
@@ -35,6 +37,7 @@ export default function TeacherDocumentsPage() {
   const [error, setError]           = useState(null);
   const [showModal, setShowModal]   = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null); // { name, htmlContent }
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => { if (teacherId) loadDocs(); }, [teacherId]);
 
@@ -83,9 +86,22 @@ export default function TeacherDocumentsPage() {
           <h1>Tài liệu</h1>
           <p>Upload PDF, Word, MP3, ảnh để chia sẻ với học sinh</p>
         </div>
-        <button className="t-btn t-btn-primary" onClick={() => setShowModal(true)}>
-          + Upload tài liệu
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => setShowArchive(true)}
+            style={{
+              padding: '9px 18px', borderRadius: 10,
+              border: '1px solid #566B58', background: '#fff',
+              color: '#566B58', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            🗂️ Kho lưu trữ
+          </button>
+          <button className="t-btn t-btn-primary" onClick={() => setShowModal(true)}>
+            + Upload tài liệu
+          </button>
+        </div>
       </div>
 
       {docs.length === 0 ? (
@@ -139,7 +155,7 @@ export default function TeacherDocumentsPage() {
                       rel="noopener noreferrer"
                       className="t-btn t-btn-sm t-btn-outline"
                     >
-                      Xem
+                      Tải về
                     </a>
                     <button
                       className="t-btn t-btn-sm t-btn-danger"
@@ -184,6 +200,20 @@ export default function TeacherDocumentsPage() {
           }}
         />
       )}
+
+      {showArchive && (
+        <>
+          <div
+            onClick={() => setShowArchive(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 999 }}
+          />
+          <FileArchiveDrawer
+            teacherId={teacherId}
+            section="document"
+            onClose={() => setShowArchive(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -227,6 +257,19 @@ function UploadModal({ teacherId, onClose, onSave }) {
       const data = await teacherDocumentService.uploadDocument(teacherId, {
         title: title.trim(), file, classId: classId || null,
       });
+      // MỤC 5C: tự động lưu vào kho lưu trữ
+      try {
+        await fileArchiveService.addFile(teacherId, {
+          section: 'document',
+          displayName: file.name,
+          title: title.trim(),
+          fileUrl: data.file_url,
+          fileType: data.file_type || file.name.split('.').pop().toLowerCase(),
+          fileSize: file.size,
+        });
+      } catch (archiveErr) {
+        console.error('Archive save failed:', archiveErr);
+      }
       onSave(data);
     } catch (e) {
       setError('Upload thất bại: ' + e.message);

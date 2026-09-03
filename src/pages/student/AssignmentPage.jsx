@@ -152,7 +152,9 @@ export default function AssignmentPage() {
     [vocabFull, selectedWordsRaw]
   );
 
-  const questionCount = assignment?.question_count || 10;
+  const questionCount = assignment?.question_count
+    || assignment?.assignment_questions?.length
+    || 10;
 
   const part2Words = React.useMemo(() => {
     const pool = vocabFull.length > 0 ? vocabFull : selectedWords;
@@ -172,9 +174,11 @@ export default function AssignmentPage() {
 
   const part4Questions = React.useMemo(() => {
     if (vocabExerciseQuestions.length === 0) return [];
-    const count = assignment?.question_count || 10;
+    const count = assignment?.question_count
+      || assignment?.assignment_questions?.length
+      || vocabExerciseQuestions.length;
     return shuffle([...vocabExerciseQuestions]).slice(0, Math.min(count, vocabExerciseQuestions.length));
-  }, [vocabExerciseQuestions, assignment?.question_count]);
+  }, [vocabExerciseQuestions, assignment?.question_count, assignment?.assignment_questions?.length]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 

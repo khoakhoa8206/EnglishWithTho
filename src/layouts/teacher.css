@@ -736,12 +736,22 @@
 }
 .t-item-card-foot {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   padding-top: 10px;
   border-top: 1px solid var(--t-border);
   font-size: 11px;
   color: var(--t-muted);
+}
+.t-item-card-foot-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.t-item-card-foot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 /* ── MODAL ───────────────────────────────────────── */

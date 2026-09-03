@@ -4,8 +4,11 @@ import mammoth from 'mammoth';
 import { vocabularyService } from '../../services/vocabularyService';
 import { convertDocxToHtml, parseVocabExerciseHtml } from '../../services/docxParserService';
 import { aiVocabularyService } from '../../services/ai/aiService';
+import { questionBankService } from '../../services/questionBankService';
 import { useAuth } from '@/hooks/useAuth';
 import ErrorState from '@/components/common/ErrorState';
+import { fileArchiveService } from '../../services/fileArchiveService';
+import FileArchiveDrawer from '../../components/common/FileArchiveDrawer';
 // BUG 6: import thêm
 import VocabPart4Preview from '@/components/vocabulary/VocabPart4Preview';
 
@@ -486,6 +489,12 @@ export const VocabularyPage = () => {
   const [uploadEx4Target, setUploadEx4Target] = useState(null); // { id, title }
   // BUG 6: state preview bài Part 4
   const [previewVocabAssignment, setPreviewVocabAssignment] = useState(null);
+  const [showArchive, setShowArchive] = useState(false);
+  const [qbUploads, setQbUploads] = useState([]);
+  const [showQbUpload, setShowQbUpload] = useState(false);
+  const [qbUploadLabel, setQbUploadLabel] = useState('');
+  const [qbUploadQuestions, setQbUploadQuestions] = useState([]);
+  const [qbUploading, setQbUploading] = useState(false);
 
   useEffect(() => { if (teacherId) fetchSets(); }, [teacherId]);
 
@@ -542,6 +551,44 @@ export const VocabularyPage = () => {
 
   const filtered = sets.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  const loadQbUploads = async () => {
+    try {
+      const uploads = await questionBankService.getUploads(teacherId, 'vocab');
+      setQbUploads(uploads);
+    } catch (e) { console.error('QB load failed:', e); }
+  };
+
+  const handleQbUpload = async (questions) => {
+    if (!qbUploadLabel.trim()) { alert('Vui lòng nhập tên batch.'); return; }
+    setQbUploading(true);
+    try {
+      await questionBankService.uploadBatch(teacherId, {
+        subjectType: 'vocab',
+        topicRefId: null,
+        uploadLabel: qbUploadLabel.trim(),
+        questions,
+      });
+      await loadQbUploads();
+      setShowQbUpload(false);
+      setQbUploadLabel('');
+      setQbUploadQuestions([]);
+    } catch (e) {
+      alert('Upload thất bại: ' + e.message);
+    } finally {
+      setQbUploading(false);
+    }
+  };
+
+  const handleQbDeleteUpload = async (uploadId) => {
+    if (!window.confirm('Xóa lần upload này và toàn bộ câu hỏi?')) return;
+    try {
+      await questionBankService.deleteUpload(uploadId);
+      setQbUploads(prev => prev.filter(u => u.id !== uploadId));
+    } catch (e) {
+      alert('Xóa thất bại: ' + e.message);
+    }
+  };
+
   return (
     <div className="t-page">
       <div className="t-topbar">
@@ -550,6 +597,28 @@ export const VocabularyPage = () => {
           <p>Quản lý và tạo các bộ từ vựng giao cho học sinh luyện tập</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => { setShowArchive(true); }}
+            style={{
+              padding: '9px 18px', borderRadius: 10,
+              border: '1px solid #566B58', background: '#fff',
+              color: '#566B58', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            🗂️ Kho lưu trữ
+          </button>
+          <button
+            onClick={() => { setShowQbUpload(true); loadQbUploads(); }}
+            style={{
+              padding: '9px 18px', borderRadius: 10,
+              border: '1px solid var(--t-border)', background: '#fff',
+              color: 'var(--t-ink)', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            📋 Ngân hàng câu hỏi
+          </button>
           <button className="t-btn" onClick={handleTopbarUpload}
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
@@ -594,8 +663,10 @@ export const VocabularyPage = () => {
                   <span className="badge badge-pink">{item.totalWords} từ</span>
                 </div>
                 <div className="t-item-card-foot">
-                  <span>Tạo: {item.createdAt}</span>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="t-item-card-foot-meta">
+                    <span>Tạo: {item.createdAt}</span>
+                  </div>
+                  <div className="t-item-card-foot-actions">
                     <button
                       className="t-btn t-btn-sm t-btn-primary"
                       onClick={() => setUploadTarget({ id: item.id, title: item.title })}
@@ -608,7 +679,6 @@ export const VocabularyPage = () => {
                     >
                       📎 Bài 4
                     </button>
-                    {/* BUG 6: nút xem bài Part 4 đã upload */}
                     <button
                       className="t-btn t-btn-sm"
                       onClick={() => handlePreviewVocabPart4(item.id, item.title)}
@@ -708,6 +778,85 @@ export const VocabularyPage = () => {
             alert(`✅ Đã lưu ${count} từ vựng vào bộ "${uploadTarget.title}"`);
           }}
         />
+      )}
+
+      {showArchive && (
+        <>
+          <div
+            onClick={() => setShowArchive(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 999 }}
+          />
+          <FileArchiveDrawer
+            teacherId={teacherId}
+            section="vocab"
+            onClose={() => setShowArchive(false)}
+          />
+        </>
+      )}
+
+      {/* MỤC 4C: Modal ngân hàng câu hỏi */}
+      {showQbUpload && (
+        <div className="t-modal-overlay" onClick={e => e.target === e.currentTarget && setShowQbUpload(false)}>
+          <div className="t-modal" style={{ maxWidth: 600 }}>
+            <h3>📋 Ngân hàng câu hỏi từ vựng</h3>
+
+            {/* Danh sách các lần upload */}
+            <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-muted)', margin: '0 0 8px' }}>
+              CÁC LẦN UPLOAD ({qbUploads.length})
+            </p>
+            {qbUploads.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--t-muted)', margin: '0 0 16px' }}>Chưa có lần upload nào.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                {qbUploads.map(u => (
+                  <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--t-hover)', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{u.upload_label}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: 'var(--t-muted)' }}>{u.question_count} câu · {new Date(u.created_at).toLocaleDateString('vi-VN')}</p>
+                    </div>
+                    <button className="t-btn t-btn-sm t-btn-danger t-btn-icon" onClick={() => handleQbDeleteUpload(u.id)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                        <path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ borderTop: '1px solid var(--t-border)', paddingTop: 12 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-muted)', margin: '0 0 8px' }}>UPLOAD MỚI</p>
+              <div className="t-field">
+                <label>Tên batch *</label>
+                <input type="text" value={qbUploadLabel} onChange={e => setQbUploadLabel(e.target.value)} placeholder="VD: File 1 - Unit 1" />
+              </div>
+              <div className="t-field">
+                <label>Upload file câu hỏi (.docx)</label>
+                <input type="file" accept=".docx" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !file.name.endsWith('.docx')) return;
+                  try {
+                    const html = await convertDocxToHtml(file);
+                    const parsed = parseVocabExerciseHtml(html);
+                    if (parsed.length === 0) { alert('Không tìm thấy câu hỏi trong file.'); return; }
+                    setQbUploadQuestions(parsed);
+                    if (!qbUploadLabel) setQbUploadLabel(file.name.replace(/\.[^.]+$/, ''));
+                  } catch (err) { alert('Đọc file thất bại: ' + err.message); }
+                }} />
+                {qbUploadQuestions.length > 0 && (
+                  <p style={{ fontSize: 12, color: '#2E7D32', marginTop: 4 }}>✅ {qbUploadQuestions.length} câu hỏi đã sẵn sàng.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="t-modal-foot">
+              <button className="t-btn" onClick={() => { setShowQbUpload(false); setQbUploadLabel(''); setQbUploadQuestions([]); }}>Đóng</button>
+              <button className="t-btn t-btn-primary" onClick={() => handleQbUpload(qbUploadQuestions)} disabled={qbUploading || !qbUploadLabel.trim() || qbUploadQuestions.length === 0}>
+                {qbUploading ? 'Đang lưu...' : `Lưu ${qbUploadQuestions.length} câu`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

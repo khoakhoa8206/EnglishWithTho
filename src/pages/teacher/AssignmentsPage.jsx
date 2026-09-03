@@ -100,10 +100,23 @@ function AssignModal({ open, onClose, onSave, classes, teacherId }) {
     try {
       const questions = await grammarService.getGrammarQuestions(topicId);
       setGrammarQuestions(questions);
-      setSelectedGrammarIds(questions.slice(0, Math.min(10, questions.length)).map(question => question.id));
+      const pool = [...questions];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      setSelectedGrammarIds(pool.slice(0, Math.min(10, pool.length)).map(q => q.id));
     } catch { setError('Không thể tải câu hỏi ngữ pháp.'); }
   };
-  const chooseGrammarQuestionCount = (count) => setSelectedGrammarIds(grammarQuestions.slice(0, count).map(question => question.id));
+  // MỤC 3F: giao ngẫu nhiên N câu (random pick), mỗi câu tự mang đáp án `correct` nên không lệch đáp án
+  const chooseGrammarQuestionCount = (count) => {
+    const pool = [...grammarQuestions];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    setSelectedGrammarIds(pool.slice(0, count).map(q => q.id));
+  };
 
 
 

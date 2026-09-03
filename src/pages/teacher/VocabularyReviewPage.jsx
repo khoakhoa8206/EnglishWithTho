@@ -6,6 +6,8 @@ import Loading from '@/components/common/Loading';
 import ErrorState from '@/components/common/ErrorState';
 import EmptyState from '@/components/common/EmptyState';
 
+const WORDS_PER_LESSON = 25;
+
 export const VocabularyReviewPage = () => {
   const { profile } = useAuth();
   const teacherId = profile?.id;
@@ -47,6 +49,10 @@ export const VocabularyReviewPage = () => {
         .order('sort_order', { ascending: true });
       if (error) throw error;
       setWords(data || []);
+      // MỤC 3E: tính tổng số bài nhỏ
+      const totalWords = data?.length || 0;
+      const totalLessons = Math.ceil(totalWords / WORDS_PER_LESSON);
+      setSelected(s => s ? { ...s, totalWords, totalLessons } : s);
     } catch { setWords([]); }
     finally { setWordLoading(false); }
   };
@@ -107,6 +113,9 @@ export const VocabularyReviewPage = () => {
               <h3 style={{ margin: 0 }}>{selected.name}</h3>
               <button className="t-btn t-btn-sm" onClick={() => setSelected(null)}>✕</button>
             </div>
+            <p style={{ fontSize: 12.5, color: 'var(--t-muted)', margin: '0 0 12px' }}>
+              {selected.totalWords || words.length} từ · {selected.totalLessons || Math.ceil((selected.totalWords || words.length) / WORDS_PER_LESSON)} bài
+            </p>
             {wordLoading ? <Loading /> : words.length === 0
               ? <EmptyState icon="📭" title="Chưa có từ nào" />
               : (

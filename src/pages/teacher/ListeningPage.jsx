@@ -7,6 +7,8 @@ import ErrorState from '@/components/common/ErrorState';
 import EmptyState from '@/components/common/EmptyState';
 import AudioPlayer from '@/components/common/AudioPlayer';
 import { studentService } from '../../services/student/studentService';
+import { fileArchiveService } from '../../services/fileArchiveService';
+import FileArchiveDrawer from '../../components/common/FileArchiveDrawer';
 import { convertDocxToHtml, parseListeningHtml, extractAnswerKey } from '../../services/docxParserService';
 
 // ─── Inline: ListeningDocxUploader ───────────────────────────────────────────
@@ -189,6 +191,7 @@ export default function ListeningPage() {
   const [error,     setError]     = useState(null);
   const [selected,  setSelected]  = useState(null);
   const [showAdd,   setShowAdd]   = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => { if (teacherId) loadMaterials(); }, [teacherId]);
 
@@ -228,7 +231,20 @@ export default function ListeningPage() {
           <h1>Listening</h1>
           <p>Upload MP3 và script để tạo bài nghe cho học sinh</p>
         </div>
-        <button className="t-btn t-btn-primary" onClick={() => setShowAdd(true)}>+ Upload tài liệu</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => setShowArchive(true)}
+            style={{
+              padding: '9px 18px', borderRadius: 10,
+              border: '1px solid #566B58', background: '#fff',
+              color: '#566B58', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            🗂️ Kho lưu trữ
+          </button>
+          <button className="t-btn t-btn-primary" onClick={() => setShowAdd(true)}>+ Upload tài liệu</button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1.8fr' : '1fr', gap: 20 }}>
@@ -290,6 +306,22 @@ export default function ListeningPage() {
               alert(`✅ Đã lưu nháp ${form.questions.length} câu hỏi. Hãy vào tab "Bài tập" (Assignments) để kiểm tra và Publish cho học sinh nhé!`);
             }
             
+            // MỤC 5C: tự động lưu file audio vào kho lưu trữ
+            if (form.audioUrl) {
+              try {
+                await fileArchiveService.addFile(teacherId, {
+                  section: 'listening',
+                  displayName: form.title,
+                  title: form.title,
+                  fileUrl: form.audioUrl,
+                  fileType: 'audio',
+                  fileSize: null,
+                });
+              } catch (archiveErr) {
+                console.error('Archive save failed:', archiveErr);
+              }
+            }
+            
             setMaterials(m => [{
               id: data.id, title: data.title,
               audioUrl: data.audio_url || '',
@@ -299,6 +331,20 @@ export default function ListeningPage() {
             setShowAdd(false);
           }}
         />
+      )}
+
+      {showArchive && (
+        <>
+          <div
+            onClick={() => setShowArchive(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 999 }}
+          />
+          <FileArchiveDrawer
+            teacherId={teacherId}
+            section="listening"
+            onClose={() => setShowArchive(false)}
+          />
+        </>
       )}
     </div>
   );

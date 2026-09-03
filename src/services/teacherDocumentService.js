@@ -22,8 +22,16 @@ export const teacherDocumentService = {
   },
 
   async uploadDocument(teacherId, { title, file, classId }) {
-    const ext  = file.name.split('.').pop().toLowerCase();
-    const path = `documents/${teacherId}/${Date.now()}_${file.name}`;
+    const ext = file.name.split('.').pop().toLowerCase();
+    // Sanitize: giữ lại chỉ ký tự an toàn cho Supabase Storage key
+    const safeName = file.name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')   // bỏ dấu tiếng Việt
+      .replace(/đ/gi, 'd')
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // thay ký tự đặc biệt bằng _
+      .replace(/_+/g, '_')               // gộp nhiều _ liên tiếp
+      .replace(/^_|_$/g, '');            // bỏ _ đầu/cuối
+    const path = `documents/${teacherId}/${Date.now()}_${safeName}`;
 
     const { error: upErr } = await supabase.storage
       .from('materials')

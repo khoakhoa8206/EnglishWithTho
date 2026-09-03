@@ -3,6 +3,7 @@
 // Dòng 1 của file (sửa import)
 import { useState, useEffect, useCallback } from 'react';
 import { studentVocabularyService, enrichWordsWithIPA } from '../../services/studentVocabularyService';
+import { assignmentService } from '@/services/assignment/assignmentService';
 import { useAuth } from '@/hooks/useAuth';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import Loading from '@/components/common/Loading';
@@ -19,6 +20,48 @@ function shuffle(arr) {
   return a;
 }
 
+const WORDS_PER_LESSON = 25; // tối đa 30, tối thiểu 20 — đặt 25 làm mặc định
+
+
+function chunkWords(words, size = WORDS_PER_LESSON) {
+  const chunks = [];
+  for (let i = 0; i < words.length; i += size) {
+    chunks.push(words.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function LessonList({ topicLessons, onSelectLesson, onBack }) {
+  const { topic, lessons } = topicLessons;
+  return (
+    <div style={{ padding: '24px 20px', maxWidth: 800, margin: '0 auto' }}>
+      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#566B58', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', padding: '6px 0', marginBottom: 16, fontFamily: 'inherit' }}>
+        ← Danh sách chủ đề
+      </button>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: '#332C35', marginBottom: 6 }}>{topic.title}</h2>
+      <p style={{ fontSize: 13, color: '#8A7F72', marginBottom: 20 }}>
+        {lessons.length} bài · {lessons.reduce((s, l) => s + l.length, 0)} từ
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {lessons.map((lessonWords, idx) => (
+          <div key={idx} style={{ border: '1px solid #EFE6D6', borderRadius: 12, padding: '14px 18px', background: '#FDFAF5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: '#332C35' }}>Bài {idx + 1}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#8A7F72' }}>{lessonWords.length} từ · 5 dạng bài</p>
+            </div>
+            <button
+              onClick={() => onSelectLesson({ topic, words: lessonWords, lessonIndex: idx, totalLessons: lessons.length })}
+              style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #566B58, #768E78)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              Học →
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function VocabularyPage() {
   const { profile } = useAuth();
   const studentId = profile?.id;
@@ -27,6 +70,8 @@ export default function VocabularyPage() {
   const [learningPart, setLearningPart]   = useState(null);
   const [topicLoading, setTopicLoading]   = useState(false);
   const [topicError, setTopicError]       = useState(null);
+  const [topicLessons, setTopicLessons]   = useState(null);
+  const [selectedLesson, setSelectedLesson] = useState(null);
 
   const fetchFn = useCallback(
     () => studentVocabularyService.getVocabularySets(studentId),
@@ -47,15 +92,14 @@ export default function VocabularyPage() {
     try {
       let words = await studentVocabularyService.getVocabularies(topic.id);
       if (!words || words.length === 0) {
-        setTopicError('Bộ từ vựng này chưa có từ nào. Vui lòng chờ giáo viên cập nhật.');
+        setTopicError('Bộ từ vựng này chưa có từ nào.');
         return;
       }
-      // Enrich IPA cho từ nào chưa có
       words = await enrichWordsWithIPA(words);
-      setLearningTopic({ topic, words });
-      setLearningPart(0);
+      const lessons = chunkWords(words);
+      setTopicLessons({ topic, lessons });
     } catch (e) {
-      setTopicError(e.message || 'Không thể tải từ vựng. Vui lòng thử lại.');
+      setTopicError(e.message || 'Không thể tải từ vựng.');
     } finally {
       setTopicLoading(false);
     }
@@ -63,17 +107,34 @@ export default function VocabularyPage() {
 
   if (!studentId) return <EmptyState icon="🔒" title="Vui lòng đăng nhập" />;
 
-  if (learningTopic && learningPart !== null) {
+  // Đang xem bài nhỏ → vào LearnPart
+  if (selectedLesson) {
     return (
       <LearnPart
-        topic={learningTopic.topic}
-        words={learningTopic.words}
+        topic={selectedLesson.topic}
+        words={selectedLesson.words}
+        lessonIndex={selectedLesson.lessonIndex}
+        totalLessons={selectedLesson.totalLessons}
         part={learningPart}
         onNextPart={(p) => setLearningPart(p)}
-        onBack={() => { setLearningTopic(null); setLearningPart(null); }}
+        onBack={() => { setSelectedLesson(null); setLearningPart(null); }}
+        onFinishLesson={() => { setSelectedLesson(null); setLearningPart(null); }}
       />
     );
   }
+
+  // Đang xem danh sách bài nhỏ của chủ đề
+  if (topicLessons) {
+    return (
+      <LessonList
+        topicLessons={topicLessons}
+        onSelectLesson={(lesson) => { setSelectedLesson(lesson); setLearningPart(0); }}
+        onBack={() => setTopicLessons(null)}
+      />
+    );
+  }
+
+  // Danh sách chủ đề
 
   return (
     <div style={{ padding: '24px 20px', maxWidth: 1180, margin: '0 auto' }}>
@@ -163,7 +224,9 @@ const PART_INFO = {
   4: { label: 'Phần 4', title: 'Kiểm tra tổng hợp', desc: 'Bài kiểm tra có tính giờ',          icon: '⏱️' },
 };
 
-function LearnPart({ topic, words, part, onNextPart, onBack }) {
+function LearnPart({ topic, words, lessonIndex, totalLessons, part, onNextPart, onBack, onFinishLesson }) {
+  const isLastLesson = totalLessons !== undefined && lessonIndex === totalLessons - 1;
+
   if (!words || words.length === 0) {
     return (
       <div style={{ padding: '24px 20px', maxWidth: 800, margin: '0 auto' }}>
@@ -203,7 +266,7 @@ function LearnPart({ topic, words, part, onNextPart, onBack }) {
         {part === 1 && <FlashcardPart words={words} onNext={() => onNextPart(2)} />}
         {part === 2 && <MultiChoicePart words={words} onNext={() => onNextPart(3)} />}
         {part === 3 && <FillBlankPart words={words} onNext={() => onNextPart(4)} />}
-        {part === 4 && <TimedTestPart words={words} onDone={onBack} />}
+        {part === 4 && <TimedTestPart words={words} onDone={onBack} onFinishLesson={onFinishLesson} isLastLesson={isLastLesson} />}
       </div>
     </div>
   );
@@ -419,7 +482,7 @@ function MultiChoicePart({ words, onNext }) {
 }
 
 function FillBlankInner({ words, count, onNext }) {
-  const selectedWords = React.useMemo(() => shuffle([...words]).slice(0, count), []);
+  const selectedWords = React.useMemo(() => shuffle([...words]), []);
   const questions = React.useMemo(() => {
     const withEx = selectedWords.filter(w => w.example);
     return withEx.length > 0
@@ -536,7 +599,9 @@ function FillBlankPart({ words, onNext }) {
   return <FillBlankInner words={words} count={words.length} onNext={onNext} />;
 }
 
-function TimedTestPart({ words, onDone }) {
+function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson }) {
+  const { profile } = useAuth();
+  const studentId = profile?.id;
   const [started, setStarted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -554,6 +619,13 @@ function TimedTestPart({ words, onDone }) {
     const interval = setInterval(() => setElapsed(e => e + 1), 1000);
     return () => clearInterval(interval);
   }, [started, submitted]);
+
+  // MỤC 3D: Streak chỉ tính sau khi hoàn thành bài nhỏ cuối cùng
+  useEffect(() => {
+    if (submitted && score && isLastLesson && studentId) {
+      assignmentService._updateStreak(studentId).catch(() => {});
+    }
+  }, [submitted, score, isLastLesson, studentId]);
 
   // Use inline effect pattern compatible with existing code
   const startTimer = () => {

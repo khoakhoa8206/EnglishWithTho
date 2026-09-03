@@ -34,7 +34,7 @@ async getById(assignmentId) {
   const { data, error } = await supabase
     .from('assignments')
     // ✅ FIX BUG-02: explicit select thay vì wildcard *
-    .select('id, title, assignment_type, class_id, deadline, vocab_topic_id, grammar_topic_id, listening_material_id, assignment_questions(*)')
+    .select('id, title, assignment_type, class_id, deadline, vocab_topic_id, grammar_topic_id, listening_material_id, question_count, assignment_questions(*)')
     .eq('id', assignmentId)
     .single();
   if (error) throw error;
@@ -206,6 +206,14 @@ async getById(assignmentId) {
         .from('assignment_questions')
         .insert(questionsToInsert);
       if (qe) throw qe;
+    }
+
+    // 4. Lưu question_count vào assignment record để student đọc được
+    if (questionsToInsert.length > 0) {
+      await supabase
+        .from('assignments')
+        .update({ question_count: questionsToInsert.length })
+        .eq('id', assignment.id);
     }
 
     return { ...assignment, questionCount: questionsToInsert.length };
