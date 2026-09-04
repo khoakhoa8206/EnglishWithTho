@@ -17,7 +17,7 @@ export const questionBankService = {
 
 
   // Upload một batch câu hỏi mới vào ngân hàng
-  async uploadBatch(teacherId, { subjectType, topicRefId, uploadLabel, questions }) {
+  async uploadBatch(teacherId, { subjectType, topicRefId, uploadLabel, questions, fileUrl }) {
     // 1. Tạo upload record
     const { data: upload, error: ue } = await supabase
       .from('question_bank_uploads')
@@ -27,6 +27,7 @@ export const questionBankService = {
         topic_ref_id: topicRefId || null,
         upload_label: uploadLabel,
         question_count: questions.length,
+        file_url: fileUrl || null, // URL file gốc trên Storage
       })
       .select()
       .single();

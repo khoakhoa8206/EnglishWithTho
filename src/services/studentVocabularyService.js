@@ -31,15 +31,46 @@ export const studentVocabularyService = {
     });
   },
 
-  // Lấy bài tập Part 4 (từ file giáo viên upload) theo vocab_topic_id
+  // Lấy bài tập Part 4 — đúng nguồn:
+  // 1. vocab_topic_ex4_assignments → question_bank_items (Bài 4 chuyên đề)
+  // 2. Fallback: vocab_topic_assignments → question_bank_items (BT chung)
   async getVocabExercises(topicId) {
-    const { data, error } = await supabase
-      .from('vocab_exercise_files')
-      .select('id, title, questions, created_at')
+    // 1. Tìm upload_id theo vocab_topic_ex4_assignments trước
+    let uploadId = null;
+    const { data: ex4, error: e0 } = await supabase
+      .from('vocab_topic_ex4_assignments')
+      .select('upload_id')
       .eq('topic_id', topicId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+      .maybeSingle();
+    if (!e0 && ex4?.upload_id) uploadId = ex4.upload_id;
+
+    // 2. Nếu chưa có, thử vocab_topic_assignments
+    if (!uploadId) {
+      const { data: bt, error: e1 } = await supabase
+        .from('vocab_topic_assignments')
+        .select('upload_id')
+        .eq('topic_id', topicId)
+        .maybeSingle();
+      if (!e1 && bt?.upload_id) uploadId = bt.upload_id;
+    }
+
+    if (!uploadId) return [];
+
+    // 3. Lấy câu hỏi từ question_bank_items
+    const { data: items, error: e2 } = await supabase
+      .from('question_bank_items')
+      .select('id, question, options, correct, question_type, hint, sort_order')
+      .eq('upload_id', uploadId)
+      .order('sort_order', { ascending: true });
+    if (e2) throw e2;
+
+    // 4. Trả về dạng tương thích với code hiện tại
+    return [{
+      id: uploadId,
+      title: 'Bài tập 4',
+      questions: items || [],
+      created_at: new Date().toISOString(),
+    }];
   },
 
   async getVocabularies(topicId) {
@@ -51,6 +82,16 @@ export const studentVocabularyService = {
 
     if (error) throw error;
     return data || [];
+  },
+  // Lấy map { topicId → uploadId } từ bảng vocab_topic_assignments
+  async getTopicAssignments() {
+    const { data, error } = await supabase
+      .from('vocab_topic_assignments')
+      .select('topic_id, upload_id');
+    if (error) return {};
+    const map = {};
+    (data || []).forEach(row => { map[row.topic_id] = row.upload_id; });
+    return map;
   },
 };
 

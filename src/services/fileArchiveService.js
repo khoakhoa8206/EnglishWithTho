@@ -23,7 +23,7 @@ export const fileArchiveService = {
   },
 
 
-  async addFile(teacherId, { section, displayName, title, fileUrl, fileType, fileSize }) {
+  async addFile(teacherId, { section, displayName, title, fileUrl, fileType, fileSize, uploadId }) {
     const { data, error } = await supabase
       .from('file_archive')
       .insert({
@@ -34,6 +34,7 @@ export const fileArchiveService = {
         file_url:     fileUrl,
         file_type:    fileType || null,
         file_size:    fileSize || null,
+        upload_id:    uploadId || null, // liên kết với ngân hàng câu hỏi
       })
       .select()
       .single();

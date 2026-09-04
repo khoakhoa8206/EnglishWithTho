@@ -129,4 +129,64 @@ export const vocabularyService = {
     if (error) throw error;
   },
 
+  // Lấy danh sách assignment (topic → upload)
+  async getTopicAssignments(teacherId) {
+    const { data, error } = await supabase
+      .from('vocab_topic_assignments')
+      .select('topic_id, upload_id')
+      .eq('teacher_id', teacherId);
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Gán hoặc bỏ gán bài tập cho một topic
+  async saveTopicAssignment(teacherId, topicId, uploadId) {
+    if (!uploadId) {
+      // Bỏ gán: xóa record nếu có
+      await supabase
+        .from('vocab_topic_assignments')
+        .delete()
+        .eq('teacher_id', teacherId)
+        .eq('topic_id', topicId);
+      return;
+    }
+    // Upsert
+    const { error } = await supabase
+      .from('vocab_topic_assignments')
+      .upsert(
+        { teacher_id: teacherId, topic_id: topicId, upload_id: uploadId },
+        { onConflict: 'teacher_id,topic_id' }
+      );
+    if (error) throw error;
+  },
+
+  // Lấy danh sách assignment Bài 4 cho tất cả topics của teacher
+  async getTopicEx4Assignments(teacherId) {
+    const { data, error } = await supabase
+      .from('vocab_topic_ex4_assignments')
+      .select('topic_id, upload_id')
+      .eq('teacher_id', teacherId);
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Gán hoặc bỏ gán Bài 4 cho một topic
+  async saveTopicEx4Assignment(teacherId, topicId, uploadId) {
+    if (!uploadId) {
+      await supabase
+        .from('vocab_topic_ex4_assignments')
+        .delete()
+        .eq('teacher_id', teacherId)
+        .eq('topic_id', topicId);
+      return;
+    }
+    const { error } = await supabase
+      .from('vocab_topic_ex4_assignments')
+      .upsert(
+        { teacher_id: teacherId, topic_id: topicId, upload_id: uploadId },
+        { onConflict: 'teacher_id,topic_id' }
+      );
+    if (error) throw error;
+  },
+
 };

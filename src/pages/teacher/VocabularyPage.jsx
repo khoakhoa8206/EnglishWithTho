@@ -370,104 +370,78 @@ function UploadWordModal({ open, onClose, teacherId, topicId, topicTitle, onSave
   );
 }
 
-// ─── Modal Upload Bài tập vận dụng (Bài 4) ──────────────────────────────────
-
-function UploadEx4Modal({ open, onClose, teacherId, topicId, topicTitle, onSaved }) {
-  const [phase, setPhase]       = useState('upload');
+// Component chọn nguồn câu hỏi — đặt bên ngoài VocabularyPage
+function QbSourceSelector({ teacherId, uploads }) {
+  const [selectedIds, setSelectedIds] = useState([]); // [] = tất cả
   const [questions, setQuestions] = useState([]);
-  const [title, setTitle]       = useState('');
-  const [error, setError]       = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (open) { setPhase('upload'); setError(''); setQuestions([]); setTitle(''); } }, [open]);
-  if (!open) return null;
-
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.name.endsWith('.docx')) { setError('Chỉ nhận file .docx'); return; }
-    try {
-      const html = await convertDocxToHtml(file);
-      const parsed = parseVocabExerciseHtml(html);
-      if (parsed.length === 0) { setError('Không tìm thấy câu hỏi trong file.'); return; }
-      setTitle(file.name.replace(/\.[^.]+$/, ''));
-      setQuestions(parsed);
-      setPhase('preview');
-    } catch (e) {
-      setError('Đọc file thất bại: ' + e.message);
-    }
+  const toggleId = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
-  const handleSave = async () => {
+  const handlePreview = async () => {
+    setLoading(true);
     try {
-      await vocabularyService.saveVocabExercise(teacherId, topicId, { title, questions });
-      onSaved();
+      const qs = await questionBankService.getQuestions(teacherId, 'vocab', {
+        selectedUploadIds: selectedIds,
+      });
+      setQuestions(qs);
     } catch (e) {
-      setError(e.message);
+      alert('Tải câu hỏi thất bại: ' + e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="t-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="t-modal" style={{ maxWidth: 560 }}>
-        <h3>📎 Upload Bài tập vận dụng — {topicTitle}</h3>
-        <p style={{ fontSize: 13, color: 'var(--t-muted)' }}>
-          File .docx có câu hỏi + đáp án cuối trang. Tự đọc, không qua AI.
-        </p>
-
-        {/* LỖI 7 FIX: hướng dẫn định dạng file */}
-        <details style={{ marginBottom: 16, fontSize: 13, color: '#4A3F35' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#566B58' }}>
-            📋 Hướng dẫn định dạng file Word (click để xem)
-          </summary>
-          <div style={{ marginTop: 10, background: '#F5EDE0', borderRadius: 8, padding: '12px 14px', lineHeight: 1.8 }}>
-            <p style={{ margin: '0 0 6px' }}><b>Phần câu hỏi:</b> Mỗi câu ghi theo dạng:</p>
-            <code style={{ display: 'block', background: '#fff', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: 12, whiteSpace: 'pre-wrap' }}>{'1. Many families have a _____ of gathering during Tet.\nA. privilege   B. custom   C. fate   D. dismissal'}</code>
-            <p style={{ margin: '0 0 6px' }}><b>Phần đáp án:</b> Viết tiêu đề <b>ĐÁP ÁN</b> hoặc <b>Đáp án</b> hoặc <b>Answer Key</b> trên một dòng riêng, sau đó liệt kê:</p>
-            <code style={{ display: 'block', background: '#fff', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: 12, whiteSpace: 'pre-wrap' }}>{'ĐÁP ÁN \n 1. B   2. C   3. A   4. D'}</code>
-            <p style={{ color: '#C24949', margin: 0 }}>⚠️ Tiêu đề <b>ĐÁP ÁN</b> phải đứng riêng một dòng, không viết liền với câu số 1.</p>
-          </div>
-        </details>
-
-        {phase === 'upload' && (
-          <>
-            <input type="file" accept=".docx" onChange={handleFile} />
-            {error && <div className="t-error">⚠️ {error}</div>}
-            <div className="t-modal-foot">
-              <button className="t-btn" onClick={onClose}>Hủy</button>
-            </div>
-          </>
-        )}
-
-        {phase === 'preview' && (
-          <>
-            <div className="t-field">
-              <label>Tên bài tập</label>
-              <input value={title} onChange={e => setTitle(e.target.value)} />
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--t-muted)', margin: '8px 0' }}>
-              Tìm thấy <b>{questions.length}</b> câu —{' '}
-              {questions.filter(q => q.correct).length} câu đã có đáp án tự động
-            </p>
-            <div style={{ maxHeight: 280, overflowY: 'auto', marginBottom: 12 }}>
-              {questions.slice(0, 5).map((q, i) => (
-                <div key={i} style={{ background: 'var(--t-hover)', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 13 }}>
-                  <b>{q.number}.</b> {q.question}
-                  {q.correct && <span style={{ color: '#2E7D32', marginLeft: 8 }}>✓ {q.correct}</span>}
-                </div>
-              ))}
-              {questions.length > 5 && (
-                <p style={{ fontSize: 12, color: 'var(--t-muted)', textAlign: 'center' }}>
-                  ... và {questions.length - 5} câu nữa
-                </p>
-              )}
-            </div>
-            {error && <div className="t-error">⚠️ {error}</div>}
-            <div className="t-modal-foot">
-              <button className="t-btn" onClick={() => setPhase('upload')}>← Chọn lại</button>
-              <button className="t-btn t-btn-primary" onClick={handleSave}>💾 Lưu bài tập</button>
-            </div>
-          </>
-        )}
+    <div style={{ borderTop: '1px solid var(--t-border)', paddingTop: 12, marginBottom: 12 }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-muted)', margin: '0 0 8px' }}>
+        CHỌN TỪ NGUỒN ĐỂ XEM / ÔN TẬP
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        <button
+          onClick={() => setSelectedIds([])}
+          style={{
+            padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            border: `2px solid ${selectedIds.length === 0 ? 'var(--t-primary)' : 'var(--t-border)'}`,
+            background: selectedIds.length === 0 ? 'var(--t-primary)' : '#fff',
+            color: selectedIds.length === 0 ? '#fff' : 'var(--t-ink)',
+            fontFamily: 'inherit',
+          }}
+        >
+          Tổng tất cả ({uploads.reduce((s, u) => s + u.question_count, 0)} câu)
+        </button>
+        {uploads.map(u => (
+          <button
+            key={u.id}
+            onClick={() => toggleId(u.id)}
+            style={{
+              padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: `2px solid ${selectedIds.includes(u.id) ? 'var(--t-primary)' : 'var(--t-border)'}`,
+              background: selectedIds.includes(u.id) ? 'var(--t-primary)' : '#fff',
+              color: selectedIds.includes(u.id) ? '#fff' : 'var(--t-ink)',
+              fontFamily: 'inherit',
+            }}
+          >
+            {u.upload_label} ({u.question_count})
+          </button>
+        ))}
       </div>
+      <button
+        onClick={handlePreview}
+        disabled={loading}
+        style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: '#566B58', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+      >
+        {loading ? 'Đang tải...' : `👁️ Xem ${selectedIds.length === 0 ? 'tất cả' : selectedIds.length + ' file'}`}
+      </button>
+      {questions.length > 0 && (
+        <p style={{ fontSize: 12, color: 'var(--t-muted)', marginTop: 6 }}>
+          Đang hiển thị {questions.length} câu hỏi
+        </p>
+      )}
     </div>
   );
 }
@@ -486,7 +460,6 @@ export const VocabularyPage = () => {
   const [uploadTarget, setUploadTarget]     = useState(null);
   const [showUploadPicker, setShowUploadPicker] = useState(false);
   const [pickedSetId, setPickedSetId] = useState('');
-  const [uploadEx4Target, setUploadEx4Target] = useState(null); // { id, title }
   // BUG 6: state preview bài Part 4
   const [previewVocabAssignment, setPreviewVocabAssignment] = useState(null);
   const [showArchive, setShowArchive] = useState(false);
@@ -495,8 +468,27 @@ export const VocabularyPage = () => {
   const [qbUploadLabel, setQbUploadLabel] = useState('');
   const [qbUploadQuestions, setQbUploadQuestions] = useState([]);
   const [qbUploading, setQbUploading] = useState(false);
+  const [qbUploadFile, setQbUploadFile] = useState(null); // lưu file object để upload Storage
+  // State cho modal gán bài tập vào chủ đề
+  const [assignBtTarget, setAssignBtTarget] = useState(null); // { id, title }
+  const [assignBtUploads, setAssignBtUploads] = useState([]); // danh sách upload trong ngân hàng
+  const [assignBtSelectedId, setAssignBtSelectedId] = useState('');
+  const [assignBtSaving, setAssignBtSaving] = useState(false);
+  const [topicAssignmentMap, setTopicAssignmentMap] = useState({}); // { topicId → uploadId }
+  // State cho modal gán Bài 4 từ ngân hàng
+  const [assignEx4Target, setAssignEx4Target] = useState(null);   // { id, title }
+  const [assignEx4Uploads, setAssignEx4Uploads] = useState([]);
+  const [assignEx4SelectedId, setAssignEx4SelectedId] = useState('');
+  const [assignEx4Saving, setAssignEx4Saving] = useState(false);
+  const [topicEx4Map, setTopicEx4Map] = useState({});             // { topicId → uploadId }
 
-  useEffect(() => { if (teacherId) fetchSets(); }, [teacherId]);
+  useEffect(() => {
+    if (teacherId) {
+      fetchSets();
+      loadTopicAssignments();
+      loadTopicEx4Assignments();   // <-- thêm dòng này
+    }
+  }, [teacherId]);
 
   const fetchSets = async () => {
     try { setLoading(true); setError(null); setSets(await vocabularyService.getVocabularySets(teacherId)); }
@@ -560,18 +552,37 @@ export const VocabularyPage = () => {
 
   const handleQbUpload = async (questions) => {
     if (!qbUploadLabel.trim()) { alert('Vui lòng nhập tên batch.'); return; }
+    if (!qbUploadFile) { alert('Vui lòng chọn file.'); return; }
     setQbUploading(true);
     try {
-      await questionBankService.uploadBatch(teacherId, {
+      // 1. Upload file gốc lên Storage
+      const fileUrl = await vocabularyService.uploadVocabFile(teacherId, qbUploadFile);
+
+      // 2. Lưu vào ngân hàng câu hỏi (giữ nguyên)
+      const upload = await questionBankService.uploadBatch(teacherId, {
         subjectType: 'vocab',
         topicRefId: null,
         uploadLabel: qbUploadLabel.trim(),
         questions,
+        fileUrl, // truyền thêm fileUrl để lưu vào ngân hàng
       });
+
+      // 3. Tự động lưu vào Kho lưu trữ
+      await fileArchiveService.addFile(teacherId, {
+        section: 'vocab',
+        displayName: qbUploadLabel.trim(),
+        title: qbUploadLabel.trim(),
+        fileUrl,
+        fileType: qbUploadFile.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        fileSize: qbUploadFile.size,
+        uploadId: upload.id, // liên kết với ngân hàng
+      });
+
       await loadQbUploads();
       setShowQbUpload(false);
       setQbUploadLabel('');
       setQbUploadQuestions([]);
+      setQbUploadFile(null);
     } catch (e) {
       alert('Upload thất bại: ' + e.message);
     } finally {
@@ -586,6 +597,76 @@ export const VocabularyPage = () => {
       setQbUploads(prev => prev.filter(u => u.id !== uploadId));
     } catch (e) {
       alert('Xóa thất bại: ' + e.message);
+    }
+  };
+
+  // Load danh sách assignment hiện tại cho tất cả topics
+  const loadTopicAssignments = async () => {
+    try {
+      const data = await vocabularyService.getTopicAssignments(teacherId);
+      const map = {};
+      data.forEach(row => { map[row.topic_id] = row.upload_id; });
+      setTopicAssignmentMap(map);
+    } catch (e) { console.error('Load assignments failed:', e); }
+  };
+
+  // Mở modal gán bài tập
+  const handleOpenAssignBt = async (item) => {
+    setAssignBtTarget(item);
+    setAssignBtSelectedId(topicAssignmentMap[item.id] || '');
+    try {
+      const uploads = await questionBankService.getUploads(teacherId, 'vocab');
+      setAssignBtUploads(uploads);
+    } catch (e) { alert('Không tải được ngân hàng: ' + e.message); }
+  };
+
+  // Lưu assignment
+  const handleSaveAssignBt = async () => {
+    if (!assignBtTarget) return;
+    setAssignBtSaving(true);
+    try {
+      await vocabularyService.saveTopicAssignment(teacherId, assignBtTarget.id, assignBtSelectedId || null);
+      await loadTopicAssignments();
+      setAssignBtTarget(null);
+    } catch (e) {
+      alert('Lưu thất bại: ' + e.message);
+    } finally {
+      setAssignBtSaving(false);
+    }
+  };
+
+  // Load assignment Bài 4 cho tất cả topics
+  const loadTopicEx4Assignments = async () => {
+    try {
+      const data = await vocabularyService.getTopicEx4Assignments(teacherId);
+      const map = {};
+      data.forEach(row => { map[row.topic_id] = row.upload_id; });
+      setTopicEx4Map(map);
+    } catch (e) { console.error('Load ex4 assignments failed:', e); }
+  };
+
+  // Mở modal gán Bài 4
+  const handleOpenAssignEx4 = async (item) => {
+    setAssignEx4Target(item);
+    setAssignEx4SelectedId(topicEx4Map[item.id] || '');
+    try {
+      const uploads = await questionBankService.getUploads(teacherId, 'vocab');
+      setAssignEx4Uploads(uploads);
+    } catch (e) { alert('Không tải được ngân hàng: ' + e.message); }
+  };
+
+  // Lưu assignment Bài 4
+  const handleSaveAssignEx4 = async () => {
+    if (!assignEx4Target) return;
+    setAssignEx4Saving(true);
+    try {
+      await vocabularyService.saveTopicEx4Assignment(teacherId, assignEx4Target.id, assignEx4SelectedId || null);
+      await loadTopicEx4Assignments();
+      setAssignEx4Target(null);
+    } catch (e) {
+      alert('Lưu thất bại: ' + e.message);
+    } finally {
+      setAssignEx4Saving(false);
     }
   };
 
@@ -675,9 +756,19 @@ export const VocabularyPage = () => {
                     </button>
                     <button
                       className="t-btn t-btn-sm"
-                      onClick={() => setUploadEx4Target({ id: item.id, title: item.title })}
+                      style={{ background: topicEx4Map[item.id] ? '#E8F5E9' : undefined, color: topicEx4Map[item.id] ? '#2E7D32' : undefined }}
+                      onClick={() => handleOpenAssignEx4(item)}
+                      title="Gán bài tập vận dụng (Bài 4) từ ngân hàng câu hỏi"
                     >
                       📎 Bài 4
+                    </button>
+                    <button
+                      className="t-btn t-btn-sm"
+                      style={{ background: topicAssignmentMap[item.id] ? '#FFF3CD' : undefined, color: topicAssignmentMap[item.id] ? '#856404' : undefined }}
+                      onClick={() => handleOpenAssignBt(item)}
+                      title="Gán bài tập từ ngân hàng câu hỏi cho học sinh"
+                    >
+                      📋 BT
                     </button>
                     <button
                       className="t-btn t-btn-sm"
@@ -747,15 +838,43 @@ export const VocabularyPage = () => {
         </div>
       )}
 
-      {uploadEx4Target && (
-        <UploadEx4Modal
-          open={!!uploadEx4Target}
-          onClose={() => setUploadEx4Target(null)}
-          teacherId={teacherId}
-          topicId={uploadEx4Target.id}
-          topicTitle={uploadEx4Target.title}
-          onSaved={() => { setUploadEx4Target(null); }}
-        />
+      {/* Modal gán Bài 4 từ ngân hàng */}
+      {assignEx4Target && (
+        <div className="t-modal-overlay" onClick={e => e.target === e.currentTarget && setAssignEx4Target(null)}>
+          <div className="t-modal" style={{ maxWidth: 480 }}>
+            <h3>📎 Gán Bài tập vận dụng (Bài 4) — {assignEx4Target.title}</h3>
+            <p style={{ fontSize: 13, color: 'var(--t-muted)', marginBottom: 16 }}>
+              Chọn file bài tập vận dụng từ ngân hàng câu hỏi. Học sinh sẽ làm bài theo đúng file này.
+            </p>
+
+            {assignEx4Uploads.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--t-muted)', marginBottom: 16 }}>
+                ⚠️ Chưa có file nào trong ngân hàng câu hỏi. Hãy upload vào "Ngân hàng câu hỏi" trước.
+              </p>
+            ) : (
+              <div className="t-field">
+                <label>Chọn file bài tập vận dụng *</label>
+                <select
+                  value={assignEx4SelectedId}
+                  onChange={e => setAssignEx4SelectedId(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
+                >
+                  <option value="">— Không gán —</option>
+                  {assignEx4Uploads.map(u => (
+                    <option key={u.id} value={u.id}>{u.upload_label} ({u.question_count} câu)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="t-modal-foot">
+              <button className="t-btn" onClick={() => setAssignEx4Target(null)}>Hủy</button>
+              <button className="t-btn t-btn-primary" onClick={handleSaveAssignEx4} disabled={assignEx4Saving}>
+                {assignEx4Saving ? 'Đang lưu...' : '💾 Lưu'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* BUG 6: Modal xem bài Part 4 */}
@@ -824,6 +943,11 @@ export const VocabularyPage = () => {
               </div>
             )}
 
+            {/* Chọn từ nguồn — preview câu hỏi */}
+            {qbUploads.length > 0 && (
+              <QbSourceSelector teacherId={teacherId} uploads={qbUploads} />
+            )}
+
             <div style={{ borderTop: '1px solid var(--t-border)', paddingTop: 12 }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-muted)', margin: '0 0 8px' }}>UPLOAD MỚI</p>
               <div className="t-field">
@@ -835,6 +959,7 @@ export const VocabularyPage = () => {
                 <input type="file" accept=".docx" onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file || !file.name.endsWith('.docx')) return;
+                  setQbUploadFile(file); // lưu file object
                   try {
                     const html = await convertDocxToHtml(file);
                     const parsed = parseVocabExerciseHtml(html);
@@ -850,9 +975,48 @@ export const VocabularyPage = () => {
             </div>
 
             <div className="t-modal-foot">
-              <button className="t-btn" onClick={() => { setShowQbUpload(false); setQbUploadLabel(''); setQbUploadQuestions([]); }}>Đóng</button>
+              <button className="t-btn" onClick={() => { setShowQbUpload(false); setQbUploadLabel(''); setQbUploadQuestions([]); setQbUploadFile(null); }}>Đóng</button>
               <button className="t-btn t-btn-primary" onClick={() => handleQbUpload(qbUploadQuestions)} disabled={qbUploading || !qbUploadLabel.trim() || qbUploadQuestions.length === 0}>
                 {qbUploading ? 'Đang lưu...' : `Lưu ${qbUploadQuestions.length} câu`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal gán bài tập từ ngân hàng */}
+      {assignBtTarget && (
+        <div className="t-modal-overlay" onClick={e => e.target === e.currentTarget && setAssignBtTarget(null)}>
+          <div className="t-modal" style={{ maxWidth: 480 }}>
+            <h3>📋 Gán bài tập — {assignBtTarget.title}</h3>
+            <p style={{ fontSize: 13, color: 'var(--t-muted)', marginBottom: 16 }}>
+              Chọn file bài tập từ ngân hàng câu hỏi. Học sinh sẽ ôn tập theo đúng file này.
+            </p>
+
+            {assignBtUploads.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--t-muted)', marginBottom: 16 }}>
+                ⚠️ Chưa có file nào trong ngân hàng câu hỏi. Hãy upload vào "Ngân hàng câu hỏi" trước.
+              </p>
+            ) : (
+              <div className="t-field">
+                <label>Chọn file bài tập *</label>
+                <select
+                  value={assignBtSelectedId}
+                  onChange={e => setAssignBtSelectedId(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
+                >
+                  <option value="">— Không gán (học tự do) —</option>
+                  {assignBtUploads.map(u => (
+                    <option key={u.id} value={u.id}>{u.upload_label} ({u.question_count} câu)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="t-modal-foot">
+              <button className="t-btn" onClick={() => setAssignBtTarget(null)}>Hủy</button>
+              <button className="t-btn t-btn-primary" onClick={handleSaveAssignBt} disabled={assignBtSaving}>
+                {assignBtSaving ? 'Đang lưu...' : '💾 Lưu'}
               </button>
             </div>
           </div>

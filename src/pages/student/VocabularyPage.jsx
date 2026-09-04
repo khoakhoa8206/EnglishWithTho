@@ -1,7 +1,7 @@
 // src/pages/student/VocabularyPage.jsx
 // Chỉ sửa handleOpenTopic — thêm loading + error state
 // Dòng 1 của file (sửa import)
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { studentVocabularyService, enrichWordsWithIPA } from '../../services/studentVocabularyService';
 import { assignmentService } from '@/services/assignment/assignmentService';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,6 +10,7 @@ import Loading from '@/components/common/Loading';
 import ErrorState from '@/components/common/ErrorState';
 import EmptyState from '@/components/common/EmptyState';
 import BackButton from '@/components/common/BackButton';
+import { getAttemptCount, incrementAttemptCount, isAttemptLimitReached, MAX_ATTEMPTS } from '@/utils/attemptCounter';
 
 function shuffle(arr) {
   const a = [...arr];
@@ -20,7 +21,7 @@ function shuffle(arr) {
   return a;
 }
 
-const WORDS_PER_LESSON = 25; // tối đa 30, tối thiểu 20 — đặt 25 làm mặc định
+const WORDS_PER_LESSON = 20; // Cố định 20 từ/bài để đồng bộ với bài tập
 
 
 function chunkWords(words, size = WORDS_PER_LESSON) {
@@ -31,7 +32,7 @@ function chunkWords(words, size = WORDS_PER_LESSON) {
   return chunks;
 }
 
-function LessonList({ topicLessons, onSelectLesson, onBack }) {
+function LessonList({ topicLessons, onSelectLesson, onBack, studentId }) {
   const { topic, lessons } = topicLessons;
   return (
     <div style={{ padding: '24px 20px', maxWidth: 800, margin: '0 auto' }}>
@@ -40,23 +41,39 @@ function LessonList({ topicLessons, onSelectLesson, onBack }) {
       </button>
       <h2 style={{ fontSize: 20, fontWeight: 800, color: '#332C35', marginBottom: 6 }}>{topic.title}</h2>
       <p style={{ fontSize: 13, color: '#8A7F72', marginBottom: 20 }}>
-        {lessons.length} bài · {lessons.reduce((s, l) => s + l.length, 0)} từ
+        {lessons.length} bài · {lessons.reduce((s, l) => s + l.length, 0)} từ · mỗi bài được làm tối đa {MAX_ATTEMPTS} lần
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {lessons.map((lessonWords, idx) => (
-          <div key={idx} style={{ border: '1px solid #EFE6D6', borderRadius: 12, padding: '14px 18px', background: '#FDFAF5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: '#332C35' }}>Bài {idx + 1}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#8A7F72' }}>{lessonWords.length} từ · 5 dạng bài</p>
+        {lessons.map((lessonWords, idx) => {
+          const count = getAttemptCount('vocab', studentId, topic.id, idx);
+          const reached = count >= MAX_ATTEMPTS;
+          return (
+            <div key={idx} style={{ border: '1px solid #EFE6D6', borderRadius: 12, padding: '14px 18px', background: '#FDFAF5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: '#332C35' }}>Bài {idx + 1}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#8A7F72' }}>{lessonWords.length} từ · 5 dạng bài</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: reached ? '#C24949' : '#8A7F72', fontWeight: reached ? 700 : 500 }}>
+                  {reached ? '⛔ Hết lượt làm bài (3/3)' : `Đã làm ${count}/${MAX_ATTEMPTS} lần`}
+                </p>
+              </div>
+              {reached ? (
+                <button
+                  onClick={() => onSelectLesson({ topic, words: lessonWords, lessonIndex: idx, totalLessons: lessons.length, previewOnly: true })}
+                  style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #EFE6D6', background: '#fff', color: '#8A7F72', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  👁 Xem danh sách từ
+                </button>
+              ) : (
+                <button
+                  onClick={() => onSelectLesson({ topic, words: lessonWords, lessonIndex: idx, totalLessons: lessons.length })}
+                  style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #566B58, #768E78)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Học →
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => onSelectLesson({ topic, words: lessonWords, lessonIndex: idx, totalLessons: lessons.length })}
-              style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #566B58, #768E78)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              Học →
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -72,6 +89,8 @@ export default function VocabularyPage() {
   const [topicError, setTopicError]       = useState(null);
   const [topicLessons, setTopicLessons]   = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
+  // Upload ID của bài tập được giáo viên gán cho chủ đề
+  const [topicAssignmentMap, setTopicAssignmentMap] = useState({}); // { [topicId]: uploadId }
 
   const fetchFn = useCallback(
     () => studentVocabularyService.getVocabularySets(studentId),
@@ -81,6 +100,14 @@ export default function VocabularyPage() {
   const { data: sets = [], loading, error, refetch } = useAsyncData(
     fetchFn, [studentId], { skip: !studentId, initial: [] }
   );
+
+  // Load assignment map: { topicId → uploadId } từ vocab_topic_assignments
+  useEffect(() => {
+    if (!studentId) return;
+    studentVocabularyService.getTopicAssignments().then(map => {
+      setTopicAssignmentMap(map);
+    }).catch(() => {});
+  }, [studentId]);
 
   const filtered = searchQuery.trim()
     ? sets.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -116,6 +143,8 @@ export default function VocabularyPage() {
         lessonIndex={selectedLesson.lessonIndex}
         totalLessons={selectedLesson.totalLessons}
         part={learningPart}
+        studentId={studentId}
+        previewOnly={selectedLesson.previewOnly}
         onNextPart={(p) => setLearningPart(p)}
         onBack={() => { setSelectedLesson(null); setLearningPart(null); }}
         onFinishLesson={() => { setSelectedLesson(null); setLearningPart(null); }}
@@ -128,6 +157,7 @@ export default function VocabularyPage() {
     return (
       <LessonList
         topicLessons={topicLessons}
+        studentId={studentId}
         onSelectLesson={(lesson) => { setSelectedLesson(lesson); setLearningPart(0); }}
         onBack={() => setTopicLessons(null)}
       />
@@ -190,6 +220,13 @@ export default function VocabularyPage() {
                     {item.wordCount > 0 ? `${item.wordCount} từ vựng` : 'Chưa có từ nào'}
                   </p>
                 </div>
+                {topicAssignmentMap[item.id] && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, background: '#FFF3CD', color: '#856404', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
+                      📋 Có bài tập được giao
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={() => handleOpenTopic(item)}
                   disabled={topicLoading || item.wordCount === 0}
@@ -219,12 +256,12 @@ export default function VocabularyPage() {
 const PART_INFO = {
   0: { label: 'Preview', title: 'Danh sách từ',      desc: 'Xem toàn bộ từ vựng trước khi học', icon: '📋' },
   1: { label: 'Phần 1', title: 'Flashcard',         desc: 'Xem và ghi nhớ từng từ',            icon: '📖' },
-  2: { label: 'Phần 2', title: 'Trắc nghiệm nghĩa', desc: 'Chọn nghĩa đúng của từ',            icon: '🎯' },
+  2: { label: 'Phần 2', title: 'Ghép cặp',           desc: 'Nối từ tiếng Anh với nghĩa đúng',   icon: '🔗' },
   3: { label: 'Phần 3', title: 'Điền từ',            desc: 'Điền từ vào chỗ trống',             icon: '✍️' },
   4: { label: 'Phần 4', title: 'Kiểm tra tổng hợp', desc: 'Bài kiểm tra có tính giờ',          icon: '⏱️' },
 };
 
-function LearnPart({ topic, words, lessonIndex, totalLessons, part, onNextPart, onBack, onFinishLesson }) {
+function LearnPart({ topic, words, lessonIndex, totalLessons, part, studentId, previewOnly, onNextPart, onBack, onFinishLesson }) {
   const isLastLesson = totalLessons !== undefined && lessonIndex === totalLessons - 1;
 
   if (!words || words.length === 0) {
@@ -237,6 +274,28 @@ function LearnPart({ topic, words, lessonIndex, totalLessons, part, onNextPart, 
       </div>
     );
   }
+
+  // Chế độ xem trước: chỉ hiện danh sách từ, ẩn các phần luyện/kiểm tra
+  if (previewOnly) {
+    return (
+      <div style={{ padding: '24px 20px', maxWidth: 800, margin: '0 auto' }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#566B58', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', padding: '6px 0', marginBottom: 16, fontFamily: 'inherit' }}>
+          ← {topic.title}
+        </button>
+        <div style={{ background: '#fff', border: '1px solid #EFE6D6', borderRadius: 16, padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#332C35', margin: '0 0 4px' }}>Danh sách từ</h2>
+            <p style={{ fontSize: 13, color: '#8A7F72', margin: 0 }}>
+              Bạn đã hết lượt làm bài. Chỉ xem được danh sách từ.
+            </p>
+          </div>
+          <PreviewPart words={words} onNext={onBack} />
+        </div>
+      </div>
+    );
+  }
+
   const partInfo = PART_INFO[part];
   return (
     <div style={{ padding: '24px 20px', maxWidth: 800, margin: '0 auto' }}>
@@ -264,9 +323,9 @@ function LearnPart({ topic, words, lessonIndex, totalLessons, part, onNextPart, 
         </div>
         {part === 0 && <PreviewPart words={words} onNext={() => onNextPart(1)} />}
         {part === 1 && <FlashcardPart words={words} onNext={() => onNextPart(2)} />}
-        {part === 2 && <MultiChoicePart words={words} onNext={() => onNextPart(3)} />}
+        {part === 2 && <MatchingPart words={words} onNext={() => onNextPart(3)} />}
         {part === 3 && <FillBlankPart words={words} onNext={() => onNextPart(4)} />}
-        {part === 4 && <TimedTestPart words={words} onDone={onBack} onFinishLesson={onFinishLesson} isLastLesson={isLastLesson} />}
+        {part === 4 && <TimedTestPart words={words} topicId={topic.id} studentId={studentId} lessonIndex={lessonIndex} onDone={onBack} onFinishLesson={onFinishLesson} isLastLesson={isLastLesson} />}
       </div>
     </div>
   );
@@ -395,38 +454,70 @@ function FlashcardPart({ words, onNext }) {
   );
 }
 
-function MultiChoiceInner({ words, count, onNext }) {
-  const [questions] = useState(() => {
-    const sel = shuffle([...words]).slice(0, count);
-    return sel.map(w => {
-      const wrong = shuffle(words.filter(x => x.id !== w.id)).slice(0, 3);
-      return { word: w, options: shuffle([w.meaning_vi, ...wrong.map(x => x.meaning_vi)]) };
-    });
-  });
-  const [idx, setIdx] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [correct, setCorrect] = useState(0);
-  const [done, setDone] = useState(false);
-  const q = questions[idx];
+function MatchingRound({ words, onDone }) {
+  const [leftOrder] = useState(() => shuffle(words));
+  const [rightOrder] = useState(() => shuffle(words));
+  const [selectedLeft, setSelectedLeft] = useState(null); // word.id
+  const [selectedRight, setSelectedRight] = useState(null); // meaning_vi
+  const [matchedLeft, setMatchedLeft] = useState(() => new Set());
+  const [matchedRight, setMatchedRight] = useState(() => new Set());
+  const [wrongIds, setWrongIds] = useState(() => new Set());
+  const [score, setScore] = useState({ done: false, correct: 0 });
 
-  const handleSelect = (opt) => {
-    if (selected !== null) return;
-    setSelected(opt);
-    if (opt === q.word.meaning_vi) setCorrect(c => c + 1);
-    setTimeout(() => {
-      if (idx < questions.length - 1) { setIdx(i => i + 1); setSelected(null); }
-      else setDone(true);
-    }, 900);
+  const isMatched = (wid) => matchedLeft.has(wid);
+
+  const handleClick = (side, id, meaning) => {
+    // Nếu đã ghép đúng thì bỏ qua
+    if (side === 'left' && matchedLeft.has(id)) return;
+    if (side === 'right' && matchedRight.has(meaning)) return;
+
+    if (side === 'left') {
+      setSelectedLeft(sel => (sel === id ? null : id));
+      setWrongIds(new Set());
+      return;
+    }
+
+    // side === 'right'
+    if (selectedLeft == null) {
+      setSelectedRight(sel => (sel === meaning ? null : meaning));
+      return;
+    }
+
+    const leftWord = words.find(w => w.id === selectedLeft);
+    const isCorrect = leftWord && leftWord.meaning_vi === meaning;
+
+    if (isCorrect) {
+      const nextLeft = new Set(matchedLeft).add(selectedLeft);
+      const nextRight = new Set(matchedRight).add(meaning);
+      const nextScore = { done: false, correct: score.correct + 1 };
+      setMatchedLeft(nextLeft);
+      setMatchedRight(nextRight);
+      setSelectedLeft(null);
+      setSelectedRight(null);
+      if (nextLeft.size === words.length) {
+        nextScore.done = true;
+        setScore(nextScore);
+      } else {
+        setScore(nextScore);
+      }
+    } else {
+      // Sai → flash đỏ rồi reset lựa chọn
+      setWrongIds(new Set([selectedLeft]));
+      setSelectedRight(null);
+      setTimeout(() => {
+        setSelectedLeft(null);
+        setWrongIds(new Set());
+      }, 500);
+    }
   };
 
-  if (done) {
-    const pct = Math.round((correct / questions.length) * 100);
+  if (score.done) {
     return (
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 10 }}>{pct >= 80 ? '🎉' : '💪'}</div>
-        <p style={{ fontSize: 22, fontWeight: 800, color: pct >= 80 ? '#2E7D32' : '#C24949' }}>{pct}%</p>
-        <p style={{ fontSize: 14, color: '#8A7F72' }}>Đúng {correct}/{questions.length} câu</p>
-        <button onClick={onNext} style={{ marginTop: 16, padding: '11px 28px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+        <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
+        <p style={{ fontSize: 24, fontWeight: 800, color: '#2E7D32' }}>Hoàn thành!</p>
+        <p style={{ fontSize: 14, color: '#8A7F72' }}>Bạn đã ghép đúng toàn bộ cặp.</p>
+        <button onClick={onDone} style={{ marginTop: 16, padding: '11px 28px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
           Sang Phần 3 →
         </button>
       </div>
@@ -435,35 +526,74 @@ function MultiChoiceInner({ words, count, onNext }) {
 
   return (
     <div>
-      <p style={{ fontSize: 12, color: '#8A7F72', textAlign: 'center', marginBottom: 16 }}>{idx + 1}/{questions.length}</p>
-      <p style={{ fontSize: 20, fontWeight: 800, color: '#332C35', textAlign: 'center', marginBottom: 20 }}>"{q.word.word}"</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {q.options.map((opt, i) => {
-          let bg = '#FDFAF5', border = '#EFE6D6', color = '#4A3F35';
-          if (selected !== null) {
-            if (opt === q.word.meaning_vi) { bg = '#EDF3ED'; border = '#A7C5A9'; color = '#2E7D32'; }
-            else if (opt === selected) { bg = '#FEF3F3'; border = '#FBD5D5'; color = '#C24949'; }
-          }
-          return (
-            <button key={i} onClick={() => handleSelect(opt)}
-              style={{ padding: '11px 14px', border: `2px solid ${border}`, borderRadius: 10, background: bg, color, fontSize: 14, fontWeight: 500, cursor: selected !== null ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s' }}>
-              {String.fromCharCode(65 + i)}. {opt}
-            </button>
-          );
-        })}
+      <p style={{ fontSize: 12, color: '#8A7F72', textAlign: 'center', marginBottom: 16 }}>
+        Nhấn một từ bên trái, rồi nhấn nghĩa tương ứng bên phải. Đã ghép: {matchedLeft.size}/{words.length}
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {leftOrder.map(w => {
+            const active = selectedLeft === w.id;
+            const hit = matchedLeft.has(w.id);
+            const isWrong = wrongIds.has(w.id);
+            return (
+              <button
+                key={w.id}
+                onClick={() => handleClick('left', w.id)}
+                disabled={hit}
+                style={{
+                  padding: '10px 12px', borderRadius: 9,
+                  border: `2px solid ${hit ? '#A7C5A9' : isWrong ? '#FBD5D5' : active ? '#566B58' : '#EFE6D6'}`,
+                  background: hit ? '#EDF3ED' : isWrong ? '#FEF3F3' : active ? '#F5EFE4' : '#fff',
+                  color: hit ? '#2E7D32' : '#332C35',
+                  fontSize: 14, fontWeight: 700, cursor: hit ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {hit ? '✓ ' : ''}{w.word}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rightOrder.map(w => {
+            const hit = matchedRight.has(w.meaning_vi);
+            const active = selectedRight === w.meaning_vi;
+            return (
+              <button
+                key={w.id}
+                onClick={() => handleClick('right', w.id, w.meaning_vi)}
+                disabled={hit}
+                style={{
+                  padding: '10px 12px', borderRadius: 9,
+                  border: `2px solid ${hit ? '#A7C5A9' : active ? '#566B58' : '#EFE6D6'}`,
+                  background: hit ? '#EDF3ED' : active ? '#F5EFE4' : '#fff',
+                  color: hit ? '#2E7D32' : '#4A3F35',
+                  fontSize: 13.5, fontWeight: 500, cursor: hit ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {hit ? '✓ ' : ''}{w.meaning_vi}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-function MultiChoicePart({ words, onNext }) {
+function MatchingPart({ words, onNext }) {
+  const BATCH = 20;
   const [started, setStarted] = useState(false);
+  const [batchIdx, setBatchIdx] = useState(0);
 
   if (!started) {
     return (
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Phần 2: Trắc nghiệm</p>
-        <p style={{ fontSize: 13, color: '#8A7F72', marginBottom: 20 }}>Chọn nghĩa đúng cho từ được cho</p>
+        <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Phần 2: Ghép cặp</p>
+        <p style={{ fontSize: 13, color: '#8A7F72', marginBottom: 20 }}>
+          Nối từ tiếng Anh với nghĩa tiếng Việt tương ứng. Mỗi lần {BATCH} từ.
+        </p>
         <button
           onClick={() => setStarted(true)}
           style={{
@@ -478,17 +608,93 @@ function MultiChoicePart({ words, onNext }) {
     );
   }
 
-  return <MultiChoiceInner words={words} count={words.length} onNext={onNext} />;
+  const batches = [];
+  for (let i = 0; i < words.length; i += BATCH) {
+    batches.push(words.slice(i, i + BATCH));
+  }
+
+  if (batchIdx < batches.length) {
+    return (
+      <MatchingRound
+        key={batchIdx}
+        words={batches[batchIdx]}
+        onDone={() => setBatchIdx(b => b + 1)}
+      />
+    );
+  }
+
+  // Hoàn thành toàn bộ
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
+      <p style={{ fontSize: 22, fontWeight: 800, color: '#2E7D32' }}>Hoàn thành!</p>
+      <p style={{ fontSize: 14, color: '#8A7F72' }}>Bạn đã ghép xong toàn bộ từ vựng.</p>
+      <button onClick={onNext} style={{ marginTop: 16, padding: '11px 28px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+        Sang Phần 3 →
+      </button>
+    </div>
+  );
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Chuyển câu hỏi từ question_bank_items ({question, options, correct, ...})
+// sang định dạng TimedTestPart quen thuộc ({ word: {id, word, meaning_vi}, options })
+function parseOpts(raw) {
+  if (!raw) return [];
+  const arr = Array.isArray(raw) ? raw : (() => { try { return JSON.parse(raw); } catch { return []; } })();
+  // Bóc prefix "A. " / "A) " nếu option đã nhúng sẵn để tránh lặp ký hiệu
+  return arr.map(o => {
+    let label = typeof o === 'string' ? o : (o.text || '');
+    label = label.replace(/^[A-Da-d][.)]\s*/, '').trim();
+    return label;
+  }).filter(Boolean);
+}
+
+// Bóc prefix "A. " / "A) " khỏi nhãn đáp án khi render (tránh hiển thị "A. A. xxx")
+function stripOptionPrefix(label) {
+  if (typeof label !== 'string') return label;
+  return label.replace(/^[A-Da-d][.)]\s*/, '').trim();
+}
+
+function convertBankToTimed(q) {
+  if (!q) return null;
+  const options = parseOpts(q.options);
+  // Bóc prefix "A. "/"B) " ở đáp án đúng cho khớp với giá trị trong options (đã bóc prefix)
+  const correct = (q.correct || '').toString().trim()
+    .replace(/^[A-Da-d][.)]\s*/, '')
+    .trim();
+  if (options.length === 0 || !correct) return null;
+  // Giải nén từ từ câu hỏi dạng: "word" có nghĩa là gì? / "word" nghĩa là gì?
+  let word = (q.question || '').replace(/^\s*["""]?(.*?)["""]?\s+có nghĩa là gì\?\s*$/i, '$1')
+    .replace(/^\s*["""]?(.*?)["""]?\s+nghĩa là gì\?\s*$/i, '$1')
+    .trim();
+  if (!word) {
+    // Fallback: tách từ đầu tiên trước dấu cách / nháy
+    const m = (q.question || '').match(/["""]([^"""]+)["""]/);
+    word = (m ? m[1] : (q.question || '').split(' ')[0]).trim();
+  }
+  if (!word) return null;
+  return {
+    word: {
+      id: q.id || `${word}-${correct}`,
+      word,
+      meaning_vi: correct,
+    },
+    options: shuffle(options),
+  };
 }
 
 function FillBlankInner({ words, count, onNext }) {
-  const selectedWords = React.useMemo(() => shuffle([...words]), []);
-  const questions = React.useMemo(() => {
-    const withEx = selectedWords.filter(w => w.example);
+  // Giữ nguyên thứ tự words (không shuffle), đồng bộ với Preview và các phần trước
+  const questions = useMemo(() => {
+    const withEx = words.filter(w => w.example && w.example.trim());
     return withEx.length > 0
-      ? withEx.map(w => ({ word: w, blank: w.example.replace(new RegExp(`\b${w.word}\b`, 'gi'), '___') }))
-      : selectedWords.map(w => ({ word: w, blank: `___ (${w.meaning_vi})` }));
-  }, [selectedWords]);
+      ? withEx.map(w => ({ word: w, blank: w.example.replace(new RegExp(`\\b${escapeRegex(w.word)}\\b`, 'gi'), '___') }))
+      : words.map(w => ({ word: w, blank: `___ (${w.meaning_vi})` }));
+  }, [words]);
 
   const [answers, setAnswers] = useState(() =>
     Object.fromEntries(questions.map((_, index) => [index, { value: '', status: 'idle' }]))
@@ -497,6 +703,18 @@ function FillBlankInner({ words, count, onNext }) {
   const [score, setScore] = useState(null);
   const correctCount = Object.values(answers).filter(answer => answer.status === 'correct').length;
   const allDone = Object.values(answers).every(answer => answer.status === 'correct');
+
+  if (!questions || questions.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px 0' }}>
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#332C35', marginBottom: 8 }}>Chưa có câu hỏi để làm.</p>
+        <p style={{ fontSize: 13, color: '#8A7F72', marginBottom: 20 }}>Phần này cần có câu ví dụ hoặc từ vựng. Bạn có thể chuyển sang phần kiểm tra tổng hợp.</p>
+        <button onClick={onNext} style={{ padding: '11px 32px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Sang Phần 4 →
+        </button>
+      </div>
+    );
+  }
 
   const handleChange = (index, value) => {
     setAnswers(previous => ({ ...previous, [index]: { value, status: 'idle' } }));
@@ -553,7 +771,7 @@ function FillBlankInner({ words, count, onNext }) {
           return (
             <div key={question.word.id || index} style={{ background: isCorrect ? '#EDF3ED' : isWrong ? '#FEF3F3' : '#FDFAF5', border: `2px solid ${isCorrect ? '#A7C5A9' : isWrong ? '#FBD5D5' : '#EFE6D6'}`, borderRadius: 12, padding: '14px 16px' }}>
               <p style={{ fontSize: 15, color: '#332C35', marginBottom: 8, fontStyle: 'italic', lineHeight: 1.6 }}>{index + 1}. "{question.blank}"</p>
-              <p style={{ fontSize: 12, color: '#8A7F72', marginBottom: 10 }}>Gợi ý: <b>{question.word.meaning_vi}</b>{question.word.ipa && <span style={{ marginLeft: 6, color: '#B0A8A0' }}>{question.word.ipa}</span>}</p>
+              <p style={{ fontSize: 12, color: '#8A7F72', marginBottom: 10 }}>Gợi ý: <b>{question.word.meaning_vi}</b></p>
               {isCorrect ? (
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#2E7D32' }}>✓ {answer.value}</span>
               ) : (
@@ -599,19 +817,65 @@ function FillBlankPart({ words, onNext }) {
   return <FillBlankInner words={words} count={words.length} onNext={onNext} />;
 }
 
-function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson }) {
+function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson, topicId, studentId, lessonIndex }) {
   const { profile } = useAuth();
-  const studentId = profile?.id;
+  const studentIdAuth = profile?.id;
   const [started, setStarted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(null);
+  const [uploadedQuestions, setUploadedQuestions] = useState(null);
+  const [loadingExercise, setLoadingExercise] = useState(false);
+  const [exerciseError, setExerciseError] = useState(null);
 
-  const questions = words.map(w => {
-    const wrong = shuffle(words.filter(x => x.id !== w.id)).slice(0, 3);
-    return { word: w, options: shuffle([w.meaning_vi, ...wrong.map(x => x.meaning_vi)]) };
-  });
+  // BUG1: Câu hỏi tự sinh chỉ tính một lần khi mount → không đổi đáp án khi re-render
+  const generatedQuestions = useMemo(() => {
+    return words.map(w => {
+      const wrong = shuffle(words.filter(x => x.id !== w.id)).slice(0, 3);
+      return { word: w, options: shuffle([w.meaning_vi, ...wrong.map(x => x.meaning_vi)]) };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const questions = uploadedQuestions || generatedQuestions;
+
+  // BUG1/BUG3: Lấy câu hỏi từ bài tập giáo viên giao (ưu tiên), ngược lại dùng câu hỏi tự sinh
+  // getVocabExercises trả về [ { id, title, questions: [bankItems...] } ] → cần bóc lớp `questions`
+  // và chuyển định dạng từ question bank ({question, options, correct}) sang định dạng
+  // TimedTestPart quen thuộc ({ word: {id, word, meaning_vi}, options: [meaning...] })
+  useEffect(() => {
+    if (!topicId) return;
+    let cancelled = false;
+    setLoadingExercise(true);
+    setExerciseError(null);
+    studentVocabularyService.getVocabExercises(topicId)
+      .then(qs => {
+        if (cancelled) return;
+        const exerciseItems = (qs && qs.length > 0 && Array.isArray(qs[0].questions))
+          ? qs[0].questions
+          : [];
+        if (exerciseItems.length > 0) {
+          const converted = exerciseItems
+            .slice(0, 20)
+            .map((q) => convertBankToTimed(q))
+            .filter(Boolean);
+          if (converted.length > 0) {
+            setUploadedQuestions(shuffle(converted));
+            return;
+          }
+        }
+        // Không có bài tập khả dụng → dùng câu hỏi tự sinh (đã có sẵn ở generatedQuestions)
+        setExerciseError('Không tải được bài tập từ giáo viên. Dùng câu hỏi tự sinh.');
+      })
+      .catch(() => {
+        if (!cancelled) setExerciseError('Không tải được bài tập từ giáo viên. Dùng câu hỏi tự sinh.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingExercise(false);
+      });
+    return () => { cancelled = true; };
+  }, [topicId]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -622,20 +886,17 @@ function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson }) {
 
   // MỤC 3D: Streak chỉ tính sau khi hoàn thành bài nhỏ cuối cùng
   useEffect(() => {
-    if (submitted && score && isLastLesson && studentId) {
-      assignmentService._updateStreak(studentId).catch(() => {});
+    if (submitted && score && isLastLesson && studentIdAuth) {
+      assignmentService._updateStreak(studentIdAuth).catch(() => {});
     }
-  }, [submitted, score, isLastLesson, studentId]);
+  }, [submitted, score, isLastLesson, studentIdAuth]);
 
-  // Use inline effect pattern compatible with existing code
   const startTimer = () => {
     setStarted(true);
     setElapsed(0);
+    // YC6: Tăng số lần làm bài khi bắt đầu
+    if (studentId) incrementAttemptCount('vocab', studentId, topicId, lessonIndex);
   };
-
-  // We need useEffect — import at top of file already covers this
-  // Re-use the pattern from the original file:
-  // (TimedTestPart uses useEffect from the parent scope's import)
 
   const handleSubmit = () => {
     let correctCount = 0;
@@ -651,14 +912,27 @@ function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson }) {
     setSubmitted(true);
   };
 
+  if (loadingExercise) {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px 0' }}>
+        <p style={{ fontSize: 14, color: '#8A7F72' }}>⏳ Đang tải bài tập...</p>
+      </div>
+    );
+  }
+
   if (!started) {
     return (
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: 14, color: '#8A7F72', marginBottom: 20 }}>
-          {words.length} câu hỏi trắc nghiệm tổng hợp. Có tính giờ. Chỉ chấm sau khi nhấn Nộp bài.
+        <p style={{ fontSize: 14, color: '#8A7F72', marginBottom: 12 }}>
+          {uploadedQuestions && uploadedQuestions.length > 0
+            ? `${uploadedQuestions.length} câu hỏi do giáo viên giao. Có tính giờ. Chỉ chấm sau khi nhấn Nộp bài.`
+            : `${words.length} câu hỏi trắc nghiệm tổng hợp. Có tính giờ. Chỉ chấm sau khi nhấn Nộp bài.`}
         </p>
+        {exerciseError && (
+          <p style={{ fontSize: 12, color: '#C24949', marginBottom: 12 }}>{exerciseError}</p>
+        )}
         <button
-          onClick={() => setStarted(true)}
+          onClick={startTimer}
           style={{ padding: '12px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #566B58, #768E78)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
         >
           ▶ Bắt đầu
@@ -709,7 +983,7 @@ function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson }) {
                     <span style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${sel ? '#566B58' : '#C6BDB0'}`, background: sel ? '#566B58' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {sel && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff', display: 'block' }} />}
                     </span>
-                    <span style={{ fontSize: 13.5, color: sel ? '#3A5040' : '#4A3F35', fontWeight: sel ? 600 : 400 }}>{String.fromCharCode(65 + j)}. {opt}</span>
+                    <span style={{ fontSize: 13.5, color: sel ? '#3A5040' : '#4A3F35', fontWeight: sel ? 600 : 400 }}>{String.fromCharCode(65 + j)}. {stripOptionPrefix(opt)}</span>
                   </button>
                 );
               })}

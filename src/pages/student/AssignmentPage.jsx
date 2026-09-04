@@ -109,21 +109,20 @@ export default function AssignmentPage() {
   // upload lại (tạo record mới) thì các file cũ vẫn còn trong DB và flatMap
   // sẽ cộng dồn câu hỏi (vd: 30 câu cũ + 30 câu mới = lặp 60 câu).
   const latestVocabExercise = vocabExercises[0];
-  const vocabExerciseQuestions = latestVocabExercise
-    ? (() => {
-        const qs = Array.isArray(latestVocabExercise.questions)
-          ? latestVocabExercise.questions
-          : (() => { try { return JSON.parse(latestVocabExercise.questions); } catch { return []; } })();
-        return qs.map((q, i) => ({
-          id: q.id || crypto.randomUUID(),
-          question: q.question || q.question_text || '',
-          options: q.options || [],
-          correct: q.correct || '',
-          question_type: q.question_type || 'multiple_choice',
-          hint: q.hint || '',
-        }));
-      })()
-    : [];
+  const vocabExerciseQuestions = React.useMemo(() => {
+    if (!latestVocabExercise) return [];
+    const qs = Array.isArray(latestVocabExercise.questions)
+      ? latestVocabExercise.questions
+      : (() => { try { return JSON.parse(latestVocabExercise.questions); } catch { return []; } })();
+    return qs.map((q) => ({
+      id: q.id || crypto.randomUUID(),
+      question: q.question || q.question_text || '',
+      options: q.options || [],
+      correct: q.correct || '',
+      question_type: q.question_type || 'multiple_choice',
+      hint: q.hint || '',
+    }));
+  }, [latestVocabExercise]);
 
   // ── FIX: tất cả useMemo phải nằm TRƯỚC mọi conditional return ──────────────
   // (React Rules of Hooks: không được gọi hook sau early return)
@@ -318,6 +317,7 @@ export default function AssignmentPage() {
       {phase === 'part2' && (
         <PartWrapper title="Phần 2: Nối từ" step={2} total={4}>
           <Part2Matching
+            key={part2Words.map(w => w.id).join(',')}
             words={part2Words}
             count={questionCount}
             onDone={handlePart2Done}
@@ -329,6 +329,7 @@ export default function AssignmentPage() {
       {phase === 'part3' && part3Words.length > 0 && (
         <PartWrapper title="Phần 3: Điền từ" step={3} total={4}>
           <Part3Input
+            key={part3Words.map(w => w.id).join(',')}
             words={part3Words}
             onDone={handlePart3Done}
           />

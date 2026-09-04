@@ -287,7 +287,7 @@ function MultipleChoice({ options, selected, onChange }) {
             <span style={{
               fontSize: 14, color: isSelected ? '#3A5040' : '#4A3F35', fontWeight: isSelected ? 600 : 400,
             }}>
-              {String.fromCharCode(65 + i)}. {label}
+              {String.fromCharCode(65 + i)}. {String(label).replace(/^[A-Da-d][.)]\s*/, '')}
             </span>
           </button>
         );
