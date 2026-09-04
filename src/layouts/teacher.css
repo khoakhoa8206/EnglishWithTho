@@ -878,3 +878,161 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — bổ sung cho teacher pages
+   ═══════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ── Page wrapper ── */
+  .t-page {
+    padding: 14px 14px 32px;
+  }
+
+  /* ── Topbar: stack title + chip xuống dòng ── */
+  .t-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .t-topbar h1 { font-size: 17px; }
+  .t-teacher-chip { display: none; } /* ẩn chip giáo viên trên mobile */
+
+  /* ── Stat grid: 2 cột trên mobile ── */
+  .t-stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px;
+  }
+  .t-stat-card { padding: 14px; }
+  .t-stat-value { font-size: 24px; }
+
+  /* ── Filter bar: stack thành cột ── */
+  .t-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .t-filter-bar input,
+  .t-filter-bar select,
+  .t-search-box {
+    width: 100% !important;
+    min-width: unset !important;
+    max-width: unset !important;
+    flex: unset !important;
+  }
+
+  /* ── Table: scroll ngang, không bị squish ── */
+  .t-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--t-radius);
+  }
+  .t-table {
+    min-width: 520px; /* buộc scroll thay vì squish */
+  }
+  .t-table th,
+  .t-table td {
+    padding: 10px 10px;
+    font-size: 13px;
+  }
+
+  /* ── Cards / grids trong các trang con ── */
+  .t-card-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  .t-card { padding: 16px; }
+
+  /* ── Modal: full-width trên mobile ── */
+  .t-modal-overlay {
+    align-items: flex-end; /* slide lên từ dưới */
+    padding: 0;
+  }
+  .t-modal,
+  .t-modal-sm {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px 16px 32px;
+  }
+  .t-modal h2,
+  .t-modal h3 { font-size: 17px; }
+
+  /* ── Modal footer: stack buttons ── */
+  .t-modal-footer,
+  .t-modal-foot {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .t-modal-footer button,
+  .t-modal-foot .t-btn,
+  .t-modal-foot button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ── Field rows ── */
+  .t-field-row,
+  .t-field-row-3 {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+
+  /* ── Buttons trong topbar ── */
+  .t-topbar .t-btn-row,
+  .t-topbar > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+  .t-topbar .t-btn {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* ── Dashboard student list rows ── */
+  .t-result-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* ── Question review cards ── */
+  .t-question-card {
+    padding: 14px;
+  }
+  .t-question-options {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* ── Stat grid: 1 cột trên màn hình rất nhỏ ── */
+  .t-stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Pagination: thu nhỏ ── */
+  .t-pagination {
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .t-pagination button {
+    min-width: 32px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  /* ── Badge trong table ── */
+  .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}

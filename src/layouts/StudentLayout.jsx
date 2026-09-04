@@ -13,6 +13,11 @@ if (typeof document !== 'undefined' && !document.getElementById('mochi-student-n
     @media (max-width: 768px) {
       .mochi-bottom-nav { display: flex; }
       .mochi-main-content { padding-bottom: 72px; }
+      .mochi-desktop-nav { display: none !important; }
+      .mochi-brand-full { display: none !important; }
+      .mochi-user-name { display: none !important; }
+      .mochi-header-inner { padding: 0 16px !important; height: 52px !important; }
+      .mochi-user-btn { padding: 5px 10px 5px 5px !important; }
     }
   `;
   document.head.appendChild(s);
@@ -57,7 +62,7 @@ export default function StudentLayout() {
         borderBottom: '1px solid #EFE6D6',
         position: 'sticky', top: 0, zIndex: 50,
       }}>
-        <div style={{
+        <div className="mochi-header-inner" style={{
           maxWidth: 1180, margin: '0 auto', padding: '0 28px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           height: 64, gap: 16,
@@ -65,8 +70,7 @@ export default function StudentLayout() {
           {/* Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Baloo 2', sans-serif", fontSize: 20, fontWeight: 700, color: '#566B58' }}>
             <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#E7EEE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🐰</span>
-            <span style={{ display: 'none' }} className="mochi-brand-text">English with Hoagtho</span>
-            <span style={{ display: 'inline' }}>English with Hoagtho</span>
+            <span className="mochi-brand-full">English with Hoagtho</span>
           </div>
 
           {/* Desktop nav links */}
@@ -99,6 +103,7 @@ export default function StudentLayout() {
           {/* Right: student info + dropdown */}
           <div style={{ position: 'relative' }}>
             <button
+              className="mochi-user-btn"
               onClick={() => setShowDropdown(v => !v)}
               aria-expanded={showDropdown}
               aria-label="Menu người dùng"
@@ -117,7 +122,7 @@ export default function StudentLayout() {
               }}>
                 {initials}
               </div>
-              <div style={{ textAlign: 'left' }}>
+              <div className="mochi-user-name" style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#566B58', lineHeight: 1.2 }}>
                   {profile?.full_name || 'Học sinh'}
                 </div>

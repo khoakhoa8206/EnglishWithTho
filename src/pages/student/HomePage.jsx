@@ -12,8 +12,24 @@ const DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
 // Responsive grid: 1 col mobile, 2 col tablet, 3 col desktop
 const GRID_STYLE = `
-  @media (max-width: 540px)  { .mochi-home-grid { grid-template-columns: 1fr !important; } }
-  @media (min-width: 541px) and (max-width: 860px) { .mochi-home-grid { grid-template-columns: 1fr 1fr !important; } }
+  @media (max-width: 540px) {
+    .mochi-home-grid { grid-template-columns: 1fr !important; }
+    .mochi-home-grid .mochi-span2 { grid-column: span 1 !important; }
+    .mochi-streak-section { padding: 20px 0 16px !important; }
+    .mochi-streak-box { padding: 20px 16px !important; border-radius: 18px !important; }
+    .mochi-streak-number { font-size: 36px !important; }
+    .mochi-flame-decor { width: 80px !important; height: 100px !important; }
+    .mochi-flame-decor img { width: 90px !important; height: 90px !important; }
+    .mochi-snake-decor { width: 90px !important; height: 100px !important; }
+    .mochi-snake-decor img { width: 110px !important; height: 110px !important; }
+    .mochi-home-main { padding: 20px 14px !important; }
+    .mochi-pending-item { flex-direction: column !important; align-items: flex-start !important; }
+    .mochi-pending-actions { width: 100% !important; justify-content: space-between !important; }
+  }
+  @media (min-width: 541px) and (max-width: 860px) {
+    .mochi-home-grid { grid-template-columns: 1fr 1fr !important; }
+    .mochi-home-grid .mochi-span2 { grid-column: span 2 !important; }
+  }
 `;
 
 if (typeof document !== 'undefined' && !document.getElementById('mochi-home-grid-css')) {
@@ -61,13 +77,13 @@ export default function HomePage() {
     <div style={{ background: '#FDF6EC', minHeight: '100vh' }}>
 
       {/* STREAK */}
-      <section style={{
+      <section className="mochi-streak-section" style={{
         background: 'linear-gradient(180deg, #E7EEE6 0%, #FDF6EC 100%)',
         borderBottom: '1px solid #EFE6D6',
         padding: '34px 0 30px',
       }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 20px' }}>
-          <div style={{
+          <div className="mochi-streak-box" style={{
             background: '#768E78', borderRadius: 24,
             padding: '28px 24px', display: 'flex',
             alignItems: 'center', justifyContent: 'space-between',
@@ -119,7 +135,7 @@ export default function HomePage() {
       </section>
 
       {/* MAIN GRID */}
-      <main style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 20px' }}>
+      <main className="mochi-home-main" style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 20px' }}>
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: '#4A3F35', margin: '0 0 4px' }}>
             Không gian học của em
@@ -152,6 +168,7 @@ export default function HomePage() {
 
           {/* Tổng kết — span 2 cols */}
           <div
+            className="mochi-span2"
             onClick={() => navigate(STUDENT_ROUTES.SUMMARY)}
             role="button"
             tabIndex={0}
@@ -210,23 +227,23 @@ export default function HomePage() {
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {dashboardData.pendingAssignments.map(item => (
-                <div key={item.id} style={{
+                <div key={item.id} className="mochi-pending-item" style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '12px 14px', borderRadius: 10,
                   border: '1px solid #EFE6D6', background: '#FDFAF5',
-                  flexWrap: 'wrap', gap: 10,
+                  flexWrap: 'wrap', gap: 8,
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, background: '#E7EEE6', color: '#566B58', padding: '2px 8px', borderRadius: 4, marginRight: 8 }}>
                       {item.type}
                     </span>
-                    <span style={{ fontSize: 13.5, fontWeight: 500, color: '#4A3F35' }}>{item.title}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 500, color: '#4A3F35', wordBreak: 'break-word' }}>{item.title}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                    <span style={{ fontSize: 12, color: '#8A7F72' }}>Hạn: {item.dueDate}</span>
+                  <div className="mochi-pending-actions" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, color: '#8A7F72', whiteSpace: 'nowrap' }}>Hạn: {item.dueDate}</span>
                     <button
                       onClick={() => navigate(`/student/assignment/${item.id}`)}
-                      style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#768E78', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#768E78', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                     >
                       Làm bài
                     </button>
@@ -276,7 +293,7 @@ function NavCard({ color, borderColor, textColor, icon, title, desc, link, onCli
 function FlameDecor({ streak }) {
   const isActive = streak > 0;
   return (
-    <div style={{
+    <div className="mochi-flame-decor" style={{
       flexShrink: 0,
       width: 120,
       height: 155,
@@ -348,7 +365,7 @@ function FlameDecor({ streak }) {
 function SnakeDecor({ streak }) {
   const isActive = streak > 0;
   return (
-    <div style={{
+    <div className="mochi-snake-decor" style={{
       flexShrink: 0,
       width: 150,
       height: 155,
