@@ -41,7 +41,7 @@ export const questionBankService = {
       subject_type: subjectType,
       question:     q.question,
       options:      q.options ? q.options : null,
-      correct:      q.correct,
+      correct:      q.correct ?? q.correct_answer ?? '',
       question_type: q.question_type || 'multiple_choice',
       difficulty:   q.difficulty || null,
       hint:         q.hint || null,

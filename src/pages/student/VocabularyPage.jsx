@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { studentVocabularyService, enrichWordsWithIPA } from '../../services/studentVocabularyService';
 import { assignmentService } from '@/services/assignment/assignmentService';
+import { streakService } from '@/services/ai/streakService';
 import { useAuth } from '@/hooks/useAuth';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import Loading from '@/components/common/Loading';
@@ -884,12 +885,12 @@ function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson, topicId, s
     return () => clearInterval(interval);
   }, [started, submitted]);
 
-  // MỤC 3D: Streak chỉ tính sau khi hoàn thành bài nhỏ cuối cùng
+  // Streak tính sau khi hoàn thành bất kỳ bài ôn tập từ vựng nào (không chỉ bài cuối)
   useEffect(() => {
-    if (submitted && score && isLastLesson && studentIdAuth) {
-      assignmentService._updateStreak(studentIdAuth).catch(() => {});
+    if (submitted && score && studentIdAuth) {
+      streakService.recordActivity(studentIdAuth).catch(() => {});
     }
-  }, [submitted, score, isLastLesson, studentIdAuth]);
+  }, [submitted, score, studentIdAuth]);
 
   const startTimer = () => {
     setStarted(true);

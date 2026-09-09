@@ -1,6 +1,7 @@
 // src/pages/student/GrammarPage.jsx
 import { useState, useCallback, useEffect } from 'react';
 import { studentGrammarService, getGrammarQuestionCount, getGrammarQuestions, getGrammarExerciseBatches } from '../../services/studentGrammarService';
+import { streakService } from '@/services/ai/streakService';
 import { getAttemptCount, isAttemptLimitReached, MAX_ATTEMPTS, incrementAttemptCount } from '@/utils/attemptCounter';
 import { useAuth } from '@/hooks/useAuth';
 import { useAsyncData } from '@/hooks/useAsyncData';
@@ -303,6 +304,8 @@ function GrammarTimedQuiz({ topic, batch, batchIdx, studentId, parseOptions, onB
     const pct = batch.length > 0 ? Math.round((correct / batch.length) * 100) : 0;
     setResult({ correct, total: batch.length, pct, passed: pct >= 80, scored, elapsed });
     setSubmitted(true);
+    // Tính chuỗi: bài ôn tập ngữ pháp cũng được tính streak
+    if (studentId) streakService.recordActivity(studentId).catch(() => {});
   };
 
   if (!started) {
