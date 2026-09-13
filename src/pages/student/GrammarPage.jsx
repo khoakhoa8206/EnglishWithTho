@@ -304,8 +304,8 @@ function GrammarTimedQuiz({ topic, batch, batchIdx, studentId, parseOptions, onB
     const pct = batch.length > 0 ? Math.round((correct / batch.length) * 100) : 0;
     setResult({ correct, total: batch.length, pct, passed: pct >= 80, scored, elapsed });
     setSubmitted(true);
-    // Tính chuỗi: bài ôn tập ngữ pháp cũng được tính streak
-    if (studentId) streakService.recordActivity(studentId).catch(() => {});
+    // BUG 3: streak chỉ tính khi đạt ≥ 80%
+    if (studentId && pct >= 80) streakService.recordActivity(studentId).catch(() => {});
   };
 
   if (!started) {

@@ -1,8 +1,7 @@
 // src/pages/teacher/VocabularyPage.jsx
 import React, { useEffect, useState } from 'react';
-import mammoth from 'mammoth';
 import { vocabularyService } from '../../services/vocabularyService';
-import { convertDocxToHtml, parseVocabExerciseHtml } from '../../services/docxParserService';
+import { convertDocxToHtml, convertDocxToText, parseVocabExerciseHtml } from '../../services/docxParserService';
 import { aiVocabularyService } from '../../services/ai/aiService';
 import { questionBankService } from '../../services/questionBankService';
 import { useAuth } from '@/hooks/useAuth';
@@ -61,12 +60,13 @@ async function readFileAsText(file) {
   }
 
   if (ext === 'docx') {
-    const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    if (!result.value || !result.value.trim()) {
+    // BUG 6 FIX: dùng convertDocxToText (styleMap giữ ngắt đoạn) thay vì extractRawText
+    // để nội dung Word không bị "phẳng" thành một khối text
+    const text = await convertDocxToText(file);
+    if (!text || !text.trim()) {
       throw new Error('File .docx không có nội dung text. Vui lòng kiểm tra lại file.');
     }
-    return result.value;
+    return text;
   }
 
   if (ext === 'doc') {

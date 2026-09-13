@@ -61,6 +61,37 @@ export const listeningService = {
     );
   },
 
+  // Lấy câu hỏi của assignment theo assignmentId (dùng khi sửa đáp án)
+  async getAssignmentQuestionsById(assignmentId) {
+    const { data, error } = await supabase
+      .from('assignment_questions')
+      .select('*')
+      .eq('assignment_id', assignmentId)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(q => ({
+      ...q,
+      options: _parseJsonArray(q.options),
+    }));
+  },
+
+  // Cập nhật 1 câu hỏi trong assignment_questions
+  async updateAssignmentQuestion(questionId, fields) {
+    const patch = {};
+    if (fields.question !== undefined) patch.question = fields.question;
+    if (fields.options !== undefined) patch.options = JSON.stringify(fields.options);
+    if (fields.correct !== undefined) patch.correct = fields.correct;
+    if (Object.keys(patch).length === 0) return null;
+    const { data, error } = await supabase
+      .from('assignment_questions')
+      .update(patch)
+      .eq('id', questionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { ...data, options: _parseJsonArray(data.options) };
+  },
+
   async uploadAudio(teacherId, file) {
     const ext  = file.name.split('.').pop();
     const path = `listening/${teacherId}/${Date.now()}.${ext}`;
@@ -171,3 +202,9 @@ export const listeningService = {
     return assignmentId;
   },
 };
+
+function _parseJsonArray(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try { return JSON.parse(raw); } catch { return []; }
+}

@@ -56,6 +56,76 @@ export const vocabularyService = {
     return data || [];
   },
 
+  // Cập nhật từ trong kho từ vựng + đồng bộ xuống các assignment đã giao
+  async updateWord(wordId, fields) {
+    const patch = {};
+    if (fields.word !== undefined) patch.word = fields.word;
+    if (fields.meaning_vi !== undefined) patch.meaning_vi = fields.meaning_vi;
+    if (fields.ipa !== undefined) patch.ipa = fields.ipa;
+    if (fields.example !== undefined) patch.example = fields.example;
+    if (Object.keys(patch).length === 0) return null;
+
+    const { data, error } = await supabase
+      .from('vocabularies')
+      .update(patch)
+      .eq('id', wordId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Đồng bộ thay đổi từ xuống các question_bank_items đang tham chiếu câu hỏi từ vựng
+  async syncWordToAssignments(wordId, { word, meaning_vi } = {}) {
+    if (!wordId) return;
+    const { data: qbItems, error: qbErr } = await supabase
+      .from('question_bank_items')
+      .select('id, question, options, correct')
+      .eq('source_type', 'vocab')
+      .eq('source_id', wordId);
+    if (qbErr) return;
+
+    const requests = (qbItems || []).map(async (item) => {
+      const patch = {};
+      if (word) {
+        const cleanWord = word.trim();
+        if (cleanWord) {
+          patch.question = `"${cleanWord}" có nghĩa là gì?`;
+        }
+      }
+      if (meaning_vi) {
+        const cleanMeaning = meaning_vi.trim();
+        if (cleanMeaning) {
+          // Cập nhật đáp án đúng trong options và correct (khớp theo text sau khi bóc prefix)
+          let options = [];
+          try {
+            options = Array.isArray(item.options) ? item.options : JSON.parse(item.options || '[]');
+          } catch { options = []; }
+          const oldCorrect = (item.correct || '').toString().replace(/^[A-Da-d][.)]\s*/, '').trim();
+          const clean = (opt) => (typeof opt === 'string' ? opt : (opt.text || ''))
+            .replace(/^[A-Da-d][.)]\s*/, '').trim();
+          let replaced = false;
+          options = options.map(o => {
+            if (!replaced && clean(o) === oldCorrect) {
+              replaced = true;
+              if (typeof o === 'string') return o.replace(o, cleanMeaning);
+              return { ...o, text: cleanMeaning };
+            }
+            return o;
+          });
+          if (!replaced) options = [...options, cleanMeaning];
+          patch.correct = cleanMeaning;
+          patch.options = options;
+        }
+      }
+      if (Object.keys(patch).length > 0) {
+        await supabase.from('question_bank_items').update(patch).eq('id', item.id);
+      }
+    });
+
+    await Promise.all(requests);
+  },
+
   async uploadVocabFile(teacherId, file) {
     const path = `vocab-uploads/${teacherId}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
     const { error: upErr } = await supabase.storage.from('materials').upload(path, file);
@@ -112,6 +182,14 @@ export const vocabularyService = {
   },
 
   async saveVocabExercise(teacherId, topicId, { title, questions }) {
+    // Xóa bản ghi exercise cũ cho cùng topic để không chồng lên nhau
+    // (chỉ giữ 1 file mới nhất, tránh bài cũ/cũ lẫn lộn khi lấy dữ liệu)
+    await supabase
+      .from('vocab_exercise_files')
+      .delete()
+      .eq('teacher_id', teacherId)
+      .eq('topic_id', topicId);
+
     const { data, error } = await supabase
       .from('vocab_exercise_files')
       .insert([{ teacher_id: teacherId, topic_id: topicId, title, questions }])
@@ -168,6 +246,40 @@ export const vocabularyService = {
       .eq('teacher_id', teacherId);
     if (error) throw error;
     return data || [];
+  },
+
+  // Sửa 1 câu hỏi trong question_bank_items (dùng từ EditAnswersModal)
+  async updateBankQuestion(questionId, fields) {
+    const patch = {};
+    if (fields.question !== undefined) patch.question = fields.question;
+    if (fields.options !== undefined) patch.options = JSON.stringify(fields.options);
+    if (fields.correct !== undefined) patch.correct = fields.correct;
+    if (Object.keys(patch).length === 0) return null;
+    const { data, error } = await supabase
+      .from('question_bank_items')
+      .update(patch)
+      .eq('id', questionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Sửa câu hỏi đã chép vào assignment_questions (bản copy trong assignment)
+  async updateAssignmentQuestion(assignmentQuestionId, fields) {
+    const patch = {};
+    if (fields.question !== undefined) patch.question = fields.question;
+    if (fields.options !== undefined) patch.options = JSON.stringify(fields.options);
+    if (fields.correct !== undefined) patch.correct = fields.correct;
+    if (Object.keys(patch).length === 0) return null;
+    const { data, error } = await supabase
+      .from('assignment_questions')
+      .update(patch)
+      .eq('id', assignmentQuestionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   },
 
   // Gán hoặc bỏ gán Bài 4 cho một topic

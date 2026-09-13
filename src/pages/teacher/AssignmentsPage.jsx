@@ -32,6 +32,175 @@ function typeBadge(assignment_type) {
   );
 }
 
+// ─── Modal sửa đáp án câu hỏi 2 chiều ────────────────────────────────────────
+function EditAnswersModal({ assignment, onClose, onSaved }) {
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [savingId, setSavingId] = useState(null);
+  const [edits, setEdits] = useState({});
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [synced, setSynced] = useState({});
+  const [assignmentType, setAssignmentType] = useState('');
+  const [fullAssignment, setFullAssignment] = useState(null);
+
+  useEffect(() => {
+    if (!assignment?.id) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError('');
+      try {
+        const full = await assignmentService.getById(assignment.id);
+        setFullAssignment(full);
+        setAssignmentType(full?.assignment_type || assignment.type || '');
+        const qs = await assignmentService.getQuestions(assignment.id);
+        if (cancelled) return;
+        setQuestions(qs || []);
+      } catch (e) {
+        if (!cancelled) setError('Không thể tải câu hỏi: ' + e.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [assignment?.id]);
+
+  const saveQuestion = async (q) => {
+    const edit = edits[q.id] || {};
+    if (!edit.correct && !edit.options && !edit.question) return;
+    setSavingId(q.id);
+    setError('');
+    setNotice('');
+    try {
+      await assignmentService.updateQuestion(q.id, edit);
+      if (edit.correct && fullAssignment)
+        await assignmentService.syncQuestionBack(fullAssignment, { ...q, ...edit });
+      setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, ...edit } : x));
+      setEdits(prev => { const n = { ...prev }; delete n[q.id]; return n; });
+      setSynced(s => ({ ...s, [q.id]: true }));
+      setTimeout(() => setSynced(s => { const n = { ...s }; delete n[q.id]; return n; }), 2000);
+      if (onSaved) onSaved();
+    } catch (e) {
+      setError('Lưu thất bại: ' + e.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const updateCorrect = (q, value) => {
+    setEdits(prev => ({ ...prev, [q.id]: { ...(prev[q.id] || {}), correct: value } }));
+  };
+
+  if (!assignment) return null;
+
+  const inputStyle = {
+    padding: '5px 9px', borderRadius: 8, border: '1px solid var(--t-border)',
+    fontSize: 12.5, fontFamily: 'inherit', flex: 1, minWidth: 0,
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      padding: '40px 16px', zIndex: 999,
+    }} onClick={onClose}>
+      <div style={{
+        background: '#fff', borderRadius: 14, maxWidth: 720, width: '100%',
+        maxHeight: '82vh', overflowY: 'auto', padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <h3 style={{ margin: 0 }}>✏️ Sửa đáp án — {assignment.title}</h3>
+          <button className="t-btn t-btn-sm" onClick={onClose}>✕</button>
+        </div>
+        <p style={{ fontSize: 12.5, color: 'var(--t-muted)', margin: '0 0 14px' }}>
+          Thay đổi sẽ được lưu vào bài tập và đồng bộ ngược về nguồn (kho câu hỏi).
+        </p>
+
+        {error && <div className="t-error" style={{ marginBottom: 10 }}>⚠️ {error}</div>}
+        {notice && <div className="t-empty" style={{ marginBottom: 10 }}>✅ {notice}</div>}
+
+        {loading ? (
+          <div style={{ padding: '24px', textAlign: 'center' }}><Loading /></div>
+        ) : questions.length === 0 ? (
+          <div className="t-empty" style={{ padding: '24px' }}>Bài tập này chưa có câu hỏi nào.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {questions.map((q, idx) => {
+              const edit = edits[q.id] || {};
+              const currentCorrect = edit.correct !== undefined ? edit.correct : q.correct;
+              const isMcq = assignmentType !== 'listening'
+                && (q.question_type !== 'fill_in_blank')
+                && Array.isArray(q.options) && q.options.length > 0;
+              return (
+                <div key={q.id} style={{
+                  background: 'var(--t-hover)', borderRadius: 10,
+                  border: '1px solid var(--t-border)', padding: '10px 12px',
+                }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-muted)' }}>{idx + 1}.</span>
+                    <span style={{ fontSize: 13, flex: 1, fontWeight: 600 }}>{q.question || q.question}</span>
+                    {synced[q.id] && <span style={{ fontSize: 11, color: '#2E9767', fontWeight: 600 }}>✓ Đã sync</span>}
+                  </div>
+
+                  {isMcq ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {q.options.map((opt, oi) => {
+                        const letter = String.fromCharCode(65 + oi);
+                        const label = (typeof opt === 'string' ? opt : (opt.text || '')).replace(/^[A-Da-d][.)]\s*/, '');
+                        const isSel = String(currentCorrect).replace(/^[A-Da-d][.)]\s*/, '') === label;
+                        return (
+                          <label key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                            <input
+                              type="radio"
+                              name={`q-${q.id}`}
+                              checked={isSel}
+                              onChange={() => updateCorrect(q, label)}
+                            />
+                            <span>{letter}. {label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: 12.5, color: 'var(--t-muted)' }}>Đáp án:</span>
+                      <input
+                        type="text"
+                        style={inputStyle}
+                        defaultValue={q.correct || ''}
+                        placeholder="Đáp án đúng..."
+                        onBlur={e => updateCorrect(q, e.target.value.trim())}
+                      />
+                    </div>
+                  )}
+
+                  {(Object.keys(edit).length > 0) && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                      <button
+                        className="t-btn t-btn-sm t-btn-primary"
+                        disabled={savingId === q.id}
+                        onClick={() => saveQuestion(q)}
+                      >
+                        {savingId === q.id ? 'Đang lưu...' : '💾 Lưu câu này'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16, gap: 8 }}>
+          <button className="t-btn" onClick={onClose}>Đóng</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal tạo bài tập ────────────────────────────────────────────────────────
 function AssignModal({ open, onClose, onSave, classes, teacherId }) {
   const [form, setForm] = useState({
@@ -305,6 +474,7 @@ export const AssignmentsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal,   setShowModal]   = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [editTarget,  setEditTarget]  = useState(null);
 
   useEffect(() => { if (teacherId) initData(); }, [teacherId]);
 
@@ -436,6 +606,11 @@ export const AssignmentsPage = () => {
                   <td>{hwBadge(item.status)}</td>
                   <td style={{ textAlign: 'right' }}>
                     <div className="t-actions">
+                      <button className="t-btn t-btn-sm"
+                        onClick={() => setEditTarget(item)}
+                        title="Sửa đáp án câu hỏi">
+                        ✏️ Sửa đáp án
+                      </button>
                       {item.status === 'draft' && (
                         <button className="t-btn t-btn-sm t-btn-primary"
                           onClick={async () => { await assignmentService.setStatus(item.id, 'published'); initData(); }}
@@ -465,6 +640,14 @@ export const AssignmentsPage = () => {
         classes={classes}
         teacherId={teacherId}
       />
+
+      {editTarget && (
+        <EditAnswersModal
+          assignment={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={initData}
+        />
+      )}
     </div>
   );
 };

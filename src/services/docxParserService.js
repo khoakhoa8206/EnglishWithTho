@@ -10,13 +10,36 @@ export async function convertDocxToHtml(file) {
     styleMap: [
       "b => b",
       "i => i",
+      "u => u",
       "p[style-name='List Paragraph'] => p:fresh",
       "p[style-name='List Number'] => p:fresh",
       "p[style-name='List Bullet'] => p:fresh",
-    ]
+      "p => p:fresh",
+    ],
+    ignoreEmptyParagraphs: false,
   });
   console.log('[MAMMOTH WARNINGS]', result.messages);
   return result.value;
+}
+
+// Lấy text đầy đủ nhưng GIỮ NGUYÊN ngắt đoạn (\n\n giữa các <p>; \n giữa các <br>)
+// để nội dung script nghe không bị "phẳng" thành một khối khi parse/đọc.
+export async function convertDocxToText(file) {
+  const html = await convertDocxToHtml(file);
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  return Array.from(doc.querySelectorAll('body *'))
+    .filter(el => el.children.length === 0 && el.textContent.trim())
+    .map(el => {
+      const block = /^(P|LI|TD|H[1-6]|DIV)$/.test(el.tagName) ? '\n\n' : '\n';
+      return el.textContent + block;
+    })
+    .join('')
+    .split('\n')
+    .map((l, i, arr) => (i === 0 || l.trim() || (i > 0 && arr[i - 1].trim())) ? l : '')
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 // ============================================================

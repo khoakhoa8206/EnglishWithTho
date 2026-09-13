@@ -14,6 +14,7 @@ import ListeningDictationEngine from '@/components/assignment/ListeningDictation
 import { listeningService } from '@/services/listeningService';
 // BUG FIX: lấy IPA và full word list từ vocabularies table
 import { studentVocabularyService } from '@/services/studentVocabularyService';
+import { streakService } from '@/services/ai/streakService';
 
 // Shuffle helper
 function shuffle(arr) {
@@ -240,6 +241,10 @@ export default function AssignmentPage() {
       setResult(res);
       setPhase('result');
       refetchAttempts();
+      // BUG 3a: chỉ ghi streak khi bài đạt
+      if (res && res.passed && studentId) {
+        streakService.recordActivity(studentId).catch(() => {});
+      }
     } catch (e) {
       setSubmitError(e.message || 'Có lỗi khi nộp bài. Thử lại nhé.');
     } finally {
@@ -975,6 +980,10 @@ function Part3Input({ words, onDone }) {
   };
   const changeAnswer = (index, value) => setAnswers(previous => ({ ...previous, [index]: { value, status: 'idle' } }));
   const submitPart = () => setSubmitted(true);
+  const retryPart = () => {
+    setAnswers(Object.fromEntries(questions.map((_, index) => [index, { value: '', status: 'idle' }])));
+    setSubmitted(false);
+  };
 
   if (submitted) {
     const pct = Math.round((correctCount / questions.length) * 100);
@@ -983,9 +992,18 @@ function Part3Input({ words, onDone }) {
         <div style={{ fontSize: 40, marginBottom: 10 }}>{pct >= 70 ? '🎉' : '💪'}</div>
         <p style={{ fontSize: 22, fontWeight: 800, color: pct >= 70 ? '#2E7D32' : '#C24949' }}>{pct}%</p>
         <p style={{ fontSize: 14, color: '#8A7F72', marginBottom: 20 }}>Đúng {correctCount}/{questions.length} câu</p>
-        <button onClick={onDone} style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Tiếp tục →
-        </button>
+        {pct >= 70 ? (
+          <button onClick={onDone} style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Tiếp tục →
+          </button>
+        ) : (
+          <div>
+            <p style={{ fontSize: 13, color: '#C24949', marginBottom: 12 }}>Cần đạt ít nhất 70% để tiếp tục. Hãy làm lại nhé!</p>
+            <button onClick={retryPart} style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              🔄 Làm lại Phần 3
+            </button>
+          </div>
+        )}
       </div>
     );
   }

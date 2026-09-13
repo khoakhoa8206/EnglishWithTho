@@ -135,6 +135,23 @@ export const grammarService = {
     if (error) throw error;
     return true;
   },
+
+  // Sửa đáp án / option của 1 câu grammar (dùng từ EditAnswersModal)
+  async updateGrammarQuestion(questionId, fields) {
+    const patch = {};
+    if (fields.question !== undefined) patch.question = fields.question;
+    if (fields.options !== undefined) patch.options = JSON.stringify(fields.options);
+    if (fields.correct !== undefined) patch.correct = fields.correct;
+    if (Object.keys(patch).length === 0) return null;
+    const { data, error } = await supabase
+      .from('grammar_questions')
+      .update(patch)
+      .eq('id', questionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { ...data, options: _parseOptions(data.options) };
+  },
 };
 
 function _parseOptions(raw) {

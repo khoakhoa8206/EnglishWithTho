@@ -90,6 +90,22 @@ export const dashboardService = {
 
     if (error) throw error;
 
+    // Lấy streaks của tất cả student xuất hiện trong kết quả
+    const studentIdsInResults = [...new Set((data || []).map(item => item.student_id))];
+    let streakMap = {};
+    if (studentIdsInResults.length > 0) {
+      const { data: streaks } = await supabase
+        .from('streaks')
+        .select('student_id, current_streak, longest_streak')
+        .in('student_id', studentIdsInResults);
+      (streaks || []).forEach(s => {
+        streakMap[s.student_id] = {
+          currentStreak: s.current_streak ?? 0,
+          longestStreak: s.longest_streak ?? 0,
+        };
+      });
+    }
+
     let results = (data || []).map((item) => {
       const assignment = assignmentMap.get(item.assignment_id);
       return {
@@ -109,6 +125,8 @@ export const dashboardService = {
           ? new Date(item.completed_at).toLocaleDateString('vi-VN')
           : '—',
         status: item.completed_at ? 'Hoàn thành' : 'Chưa làm',
+        currentStreak: streakMap[item.student_id]?.currentStreak ?? 0,
+        longestStreak: streakMap[item.student_id]?.longestStreak ?? 0,
       };
     });
 

@@ -705,6 +705,12 @@ function FillBlankInner({ words, count, onNext }) {
   const correctCount = Object.values(answers).filter(answer => answer.status === 'correct').length;
   const allDone = Object.values(answers).every(answer => answer.status === 'correct');
 
+  const retryAll = () => {
+    setAnswers(Object.fromEntries(questions.map((_, index) => [index, { value: '', status: 'idle' }])));
+    setSubmitted(false);
+    setScore(null);
+  };
+
   if (!questions || questions.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -746,14 +752,24 @@ function FillBlankInner({ words, count, onNext }) {
   };
 
   if (submitted && score) {
+    const passed = score.pct >= 80;
     return (
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 10 }}>{score.pct >= 80 ? '🎉' : '💪'}</div>
-        <p style={{ fontSize: 22, fontWeight: 800, color: score.pct >= 80 ? '#2E7D32' : '#C24949' }}>{score.pct}%</p>
+        <div style={{ fontSize: 40, marginBottom: 10 }}>{passed ? '🎉' : '💪'}</div>
+        <p style={{ fontSize: 22, fontWeight: 800, color: passed ? '#2E7D32' : '#C24949' }}>{score.pct}%</p>
         <p style={{ fontSize: 14, color: '#8A7F72' }}>Đúng {score.correct}/{score.total} câu</p>
-        <button onClick={onNext} style={{ marginTop: 16, padding: '11px 28px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Sang Phần 4 →
-        </button>
+        {passed ? (
+          <button onClick={onNext} style={{ marginTop: 16, padding: '11px 28px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Sang Phần 4 →
+          </button>
+        ) : (
+          <div>
+            <p style={{ fontSize: 13, color: '#C24949', marginTop: 12 }}>Cần đạt ít nhất 80% để sang Phần 4. Hãy làm lại nhé!</p>
+            <button onClick={retryAll} style={{ marginTop: 12, padding: '11px 28px', borderRadius: 10, border: 'none', background: '#566B58', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              🔄 Làm lại Phần 3
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -885,9 +901,9 @@ function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson, topicId, s
     return () => clearInterval(interval);
   }, [started, submitted]);
 
-  // Streak tính sau khi hoàn thành bất kỳ bài ôn tập từ vựng nào (không chỉ bài cuối)
+  // Streak chỉ tính khi ĐẠT ≥ 80% (bug 3b: không tính khi trượt)
   useEffect(() => {
-    if (submitted && score && studentIdAuth) {
+    if (submitted && score && score.pct >= 80 && studentIdAuth) {
       streakService.recordActivity(studentIdAuth).catch(() => {});
     }
   }, [submitted, score, studentIdAuth]);
@@ -902,7 +918,9 @@ function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson, topicId, s
   const handleSubmit = () => {
     let correctCount = 0;
     questions.forEach(q => {
-      if (answers[q.word.id] === q.word.meaning_vi) correctCount++;
+      const chosen = (answers[q.word.id] || '').toString().trim().toLowerCase();
+      const expected = (q.word.meaning_vi || '').toString().trim().toLowerCase();
+      if (chosen && chosen === expected) correctCount++;
     });
     setScore({
       correct: correctCount,

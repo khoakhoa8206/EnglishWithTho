@@ -197,16 +197,16 @@ const DashboardPage = () => {
               <tr>
                 <th>Học sinh</th><th>Lớp</th><th>Bài tập</th>
                 <th>Điểm</th><th>Thời gian</th>
-                <th>Mức độ</th><th>Kết quả</th>
+                <th>Mức độ</th><th>Chuỗi 🔥</th><th>Kết quả</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--t-muted)' }}>Đang tải dữ liệu...</td></tr>
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: 'var(--t-muted)' }}>Đang tải dữ liệu...</td></tr>
               ) : error ? (
-                <tr><td colSpan="7"><div className="t-empty">Không thể tải dữ liệu.</div></td></tr>
+                <tr><td colSpan="8"><div className="t-empty">Không thể tải dữ liệu.</div></td></tr>
               ) : results.length === 0 ? (
-                <tr><td colSpan="7"><div className="t-empty">Không có dữ liệu phù hợp.</div></td></tr>
+                <tr><td colSpan="8"><div className="t-empty">Không có dữ liệu phù hợp.</div></td></tr>
               ) : results.map((row) => (
                 <tr key={row.id}>
                   <td>
@@ -225,6 +225,12 @@ const DashboardPage = () => {
                   <td>{row.duration || '—'}</td>
                   <td>
                     <ProgressRing pct={row.score ?? 0} />
+                  </td>
+                  <td>
+                    <span title={`Dài nhất: ${row.longestStreak} ngày`}
+                      style={{ fontWeight: 700, color: row.currentStreak > 0 ? '#E07B00' : '#8A7F72' }}>
+                      {row.currentStreak > 0 ? `🔥 ${row.currentStreak}` : '—'}
+                    </span>
                   </td>
                   <td><StatusBadge passed={row.passed} /></td>
                 </tr>

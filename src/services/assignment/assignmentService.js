@@ -41,6 +41,117 @@ async getById(assignmentId) {
   return data;
 },
 
+  // ─── BUG 7: chỉnh sửa / sync câu hỏi trong assignment ──────────────────────
+  // Lấy câu hỏi thực tế của assignment (từ assignment_questions)
+  async getQuestions(assignmentId) {
+    const { data, error } = await supabase
+      .from('assignment_questions')
+      .select('*')
+      .eq('assignment_id', assignmentId)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(q => ({
+      ...q,
+      options: (() => {
+        if (!q.options) return [];
+        if (Array.isArray(q.options)) return q.options;
+        try { return JSON.parse(q.options); } catch { return []; }
+      })(),
+    }));
+  },
+
+  // Cập nhật 1 dòng assignment_questions (đồng thời giữ sync 2 chiều)
+  async updateQuestion(assignmentQuestionId, fields) {
+    const patch = {};
+    if (fields.question !== undefined) patch.question = fields.question;
+    if (fields.options !== undefined) patch.options = JSON.stringify(fields.options);
+    if (fields.correct !== undefined) patch.correct = fields.correct;
+    if (Object.keys(patch).length === 0) return null;
+    const { data, error } = await supabase
+      .from('assignment_questions')
+      .update(patch)
+      .eq('id', assignmentQuestionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Đồng bộ chỉnh sửa từ assignment_questions quay ngược về nguồn gốc
+  // (question_bank_items / grammar_questions / listening_materials)
+  async syncQuestionBack(assignment, aq) {
+    if (!assignment || !aq) return;
+    const { assignment_type, vocab_topic_id, grammar_topic_id, listening_material_id } = assignment;
+
+    // Vocabulary: tìm item trong question_bank_items có nội dung khớp
+    if (assignment_type === 'vocabulary') {
+      const { data: uploads } = await supabase
+        .from('vocab_topic_ex4_assignments')
+        .select('upload_id')
+        .eq('topic_id', vocab_topic_id);
+      if (!uploads || uploads.length === 0) return;
+      let bankItem = null;
+      for (const u of uploads) {
+        const { data: items } = await supabase
+          .from('question_bank_items')
+          .select('*')
+          .eq('upload_id', u.upload_id)
+          .limit(100);
+        const found = (items || []).find(i => i.question === aq.question
+          || (i.correct || '').toString() === String(aq.correct));
+        if (found) { bankItem = found; break; }
+      }
+      if (bankItem) {
+        const patch = {};
+        if (aq.correct !== undefined && aq.correct !== '') patch.correct = aq.correct;
+        if (aq.question !== undefined) patch.question = aq.question;
+        if (aq.options !== undefined) patch.options = JSON.stringify(aq.options);
+        if (Object.keys(patch).length > 0) {
+          await supabase.from('question_bank_items').update(patch).eq('id', bankItem.id);
+        }
+      }
+      return;
+    }
+
+    // Grammar: cập nhật thẳng grammar_questions theo topic
+    if (assignment_type === 'grammar' && grammar_topic_id) {
+      const { data: gqs } = await supabase
+        .from('grammar_questions')
+        .select('*')
+        .eq('topic_id', grammar_topic_id)
+        .limit(1000);
+      const found = (gqs || []).find(g => g.question === aq.question
+        || g.correct === String(aq.correct));
+      if (found) {
+        const patch = {};
+        if (aq.correct !== undefined && aq.correct !== '') patch.correct = aq.correct;
+        if (aq.question !== undefined) patch.question = aq.question;
+        if (aq.options !== undefined) patch.options = JSON.stringify(aq.options);
+        if (Object.keys(patch).length > 0) {
+          await supabase.from('grammar_questions').update(patch).eq('id', found.id);
+        }
+      }
+      return;
+    }
+
+    // Listening: cập nhật script (thay từ sai trong script bằng đáp án đúng)
+    if (assignment_type === 'listening' && listening_material_id) {
+      const { data: mat } = await supabase
+        .from('listening_materials')
+        .select('script')
+        .eq('id', listening_material_id)
+        .single();
+      if (mat && mat.script && aq.correct) {
+        const blankCount = (mat.script.match(/_+/g) || []).length;
+        // Chỉ tự điền nếu script còn 1 blank duy nhất, tránh ghi đè mọi blank
+        if (blankCount <= 1) {
+          const script = mat.script.replace(/_+/g, aq.correct);
+          await supabase.from('listening_materials').update({ script }).eq('id', listening_material_id);
+        }
+      }
+    }
+  },
+
   async create(payload) {
     const { data, error } = await supabase
       .from('assignments')
