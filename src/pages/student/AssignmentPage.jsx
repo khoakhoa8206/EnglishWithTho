@@ -15,6 +15,8 @@ import { listeningService } from '@/services/listeningService';
 // BUG FIX: lấy IPA và full word list từ vocabularies table
 import { studentVocabularyService } from '@/services/studentVocabularyService';
 import { streakService } from '@/services/ai/streakService';
+import { useAntiCheat } from '@/hooks/useAntiCheat';
+import AntiCheatWarning from '@/components/assignment/AntiCheatWarning';
 
 // Shuffle helper
 function shuffle(arr) {
@@ -37,8 +39,9 @@ export default function AssignmentPage() {
   const [unknownWords, setUnknownWords] = useState([]);
   const [result, setResult] = useState(null);
   const [startedAt, setStartedAt] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [resetCount, setResetCount]   = useState(0); // số lần bị reset (lưu vào DB khi nộp)
 
   const fetchFn = useCallback(
     () => assignmentService.getById(assignmentId),
@@ -67,6 +70,24 @@ export default function AssignmentPage() {
   const hasPrevAttempt = prevAttempts.length > 0;
   const isVocab = assignment?.assignment_type === 'vocabulary';
   const isListening = assignment?.assignment_type === 'listening';
+
+  // Anti-cheat: chỉ bật khi đang ở phase làm bài thực sự
+  const antiCheatActive = phase === 'part4_doing';
+
+  const handleAntiCheatReset = useCallback((totalViolations) => {
+    // Cộng dồn reset_count (một lần làm bài có thể bị reset nhiều lần)
+    setResetCount(prev => prev + 1);
+    // Quay về preview (isVocab) hoặc intro (non-vocab) để làm lại từ đầu
+    setPhase(isVocab ? 'preview' : 'intro');
+    setStartedAt(null);
+    setSubmitError(null);
+  }, [isVocab]);
+
+  const { violationCount, showWarning, isResetting, dismissWarning } = useAntiCheat({
+    active: antiCheatActive,
+    onReset: handleAntiCheatReset,
+    onViolation: null,
+  });
 
   const fetchMaterial = useCallback(() => {
     if (assignment?.listening_material_id) {
@@ -115,14 +136,41 @@ export default function AssignmentPage() {
     const qs = Array.isArray(latestVocabExercise.questions)
       ? latestVocabExercise.questions
       : (() => { try { return JSON.parse(latestVocabExercise.questions); } catch { return []; } })();
-    return qs.map((q) => ({
-      id: q.id || crypto.randomUUID(),
-      question: q.question || q.question_text || '',
-      options: q.options || [],
-      correct: q.correct || '',
-      question_type: q.question_type || 'multiple_choice',
-      hint: q.hint || '',
-    }));
+
+    return qs.map((q) => {
+      // Parse options (bóc prefix "A. ")
+      const rawOptions = Array.isArray(q.options) ? q.options : (() => {
+        try { return JSON.parse(q.options || '[]'); } catch { return []; }
+      })();
+      const prefixRe = /^[A-Da-d][.)]\s*/;
+      const allHavePrefix = rawOptions.length > 0 && rawOptions.every(o =>
+        prefixRe.test(typeof o === 'string' ? o : (o.text || ''))
+      );
+      const options = rawOptions.map(o => {
+        const text = typeof o === 'string' ? o : (o.text || '');
+        return allHavePrefix ? text.replace(prefixRe, '').trim() : text.trim();
+      });
+
+      // Resolve đáp án đúng: nếu "A"/"B"/... → lấy text từ options
+      let correctText = (q.correct || '').toString().trim();
+      const letterMatch = correctText.match(/^([A-Da-d])[.)]\s*$/);
+      if (letterMatch) {
+        const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65;
+        correctText = options[idx] || correctText;
+      } else {
+        // Có thể correct đã là text đầy đủ với prefix
+        correctText = correctText.replace(prefixRe, '').trim();
+      }
+
+      return {
+        id: q.id || crypto.randomUUID(),
+        question: q.question || q.question_text || '',
+        options,           // array text sạch, không có prefix
+        correct: correctText, // text đáp án đúng (không phải chữ cái)
+        question_type: q.question_type || 'multiple_choice',
+        hint: q.hint || '',
+      };
+    });
   }, [latestVocabExercise]);
 
   // ── FIX: tất cả useMemo phải nằm TRƯỚC mọi conditional return ──────────────
@@ -237,6 +285,7 @@ export default function AssignmentPage() {
         startedAt,
         answers,
         exerciseCorrectMap,
+        resetCount,   // số lần bị reset trong lần làm này
       });
       setResult(res);
       setPhase('result');
@@ -270,6 +319,15 @@ export default function AssignmentPage() {
 
   return (
     <div style={phase === 'part4_doing' && isListening ? { minHeight: '100vh' } : { padding: '24px 20px', maxWidth: 860, margin: '0 auto', minHeight: '100vh' }}>
+      {/* Anti-cheat overlay — hiện khi học sinh out tab/app */}
+      {showWarning && (
+        <AntiCheatWarning
+          violationCount={violationCount}
+          isResetting={isResetting}
+          onDismiss={dismissWarning}
+        />
+      )}
+
       {phase !== 'part4_doing' && <BackButton to="/student/homework" />}
 
       {/* INTRO */}

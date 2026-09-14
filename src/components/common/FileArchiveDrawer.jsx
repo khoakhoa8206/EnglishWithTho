@@ -48,15 +48,22 @@ export default function FileArchiveDrawer({ teacherId, section, onClose }) {
                   {f.fileType?.toUpperCase()} · {f.fileSize ? `${Math.round(f.fileSize / 1024)} KB` : ''} · {f.uploadedAt}
                 </p>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <a
-                    href={f.fileUrl}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #566B58', background: '#fff', color: '#566B58', fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}
-                  >
-                    ⬇ Tải về
-                  </a>
+                  {f.fileType !== 'question_bank' && (
+                    <a
+                      href={f.fileUrl}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #566B58', background: '#fff', color: '#566B58', fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}
+                    >
+                      ⬇ Tải về
+                    </a>
+                  )}
+                  {f.fileType === 'question_bank' && (
+                    <span style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #566B58', background: '#F5EDE0', color: '#566B58', fontSize: 12.5, fontWeight: 700, textAlign: 'center' }}>
+                      📋 Ngân hàng câu hỏi
+                    </span>
+                  )}
                   <button
                     onClick={() => handleDelete(f.id)}
                     style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #FBD5D5', background: '#FEF3F3', color: '#C24949', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}

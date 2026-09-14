@@ -337,7 +337,7 @@ async getById(assignmentId) {
     return true;
   },
 
-  async submitAttempt({ studentId, assignmentId, startedAt, answers, exerciseCorrectMap }) {
+  async submitAttempt({ studentId, assignmentId, startedAt, answers, exerciseCorrectMap, resetCount }) {
     let questionMap;
 
     if (exerciseCorrectMap) {
@@ -394,6 +394,7 @@ async getById(assignmentId) {
         total_questions: totalQuestions,
         started_at: startedAt, completed_at: completedAt,
         duration_seconds: durationSeconds, passed,
+        reset_count: resetCount ?? 0,
       })
       .select().single();
     if (ae) throw ae;

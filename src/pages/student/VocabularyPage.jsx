@@ -663,28 +663,42 @@ function stripOptionPrefix(label) {
 function convertBankToTimed(q) {
   if (!q) return null;
   const options = parseOpts(q.options);
-  // Bóc prefix "A. "/"B) " ở đáp án đúng cho khớp với giá trị trong options (đã bóc prefix)
-  const correct = (q.correct || '').toString().trim()
-    .replace(/^[A-Da-d][.)]\s*/, '')
+  if (options.length === 0) return null;
+
+  // ── Resolve đáp án đúng ──────────────────────────────────────────────────
+  let correct = '';
+  const rawCorrect = (q.correct || '').toString().trim();
+
+  // Trường hợp 1: correct là chữ cái A/B/C/D → index vào options
+  const letterMatch = rawCorrect.match(/^([A-Da-d])[.)]?\s*$/);
+  if (letterMatch) {
+    const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65; // A→0, B→1...
+    correct = options[idx] || '';
+  } else {
+    // Trường hợp 2: correct là text đầy đủ (có hoặc không có prefix)
+    correct = rawCorrect.replace(/^[A-Da-d][.)]?\s*/, '').trim();
+  }
+
+  if (!correct) return null;
+
+  // ── Trích xuất từ từ câu hỏi ─────────────────────────────────────────────
+  let word = (q.question || '')
+    .replace(/^[\s""\u201C\u201D]*(.*?)[\s""\u201C\u201D]*\s+(?:có\s+)?nghĩa\s+là\s+gì\s*\??\s*$/i, '$1')
     .trim();
-  if (options.length === 0 || !correct) return null;
-  // Giải nén từ từ câu hỏi dạng: "word" có nghĩa là gì? / "word" nghĩa là gì?
-  let word = (q.question || '').replace(/^\s*["""]?(.*?)["""]?\s+có nghĩa là gì\?\s*$/i, '$1')
-    .replace(/^\s*["""]?(.*?)["""]?\s+nghĩa là gì\?\s*$/i, '$1')
-    .trim();
+
   if (!word) {
-    // Fallback: tách từ đầu tiên trước dấu cách / nháy
-    const m = (q.question || '').match(/["""]([^"""]+)["""]/);
-    word = (m ? m[1] : (q.question || '').split(' ')[0]).trim();
+    const m = (q.question || '').match(/["\u201C\u201D]([^"\u201C\u201D]+)["\u201C\u201D]/);
+    word = (m ? m[1] : (q.question || '').split(/\s+/)[0] || '').trim();
   }
   if (!word) return null;
+
   return {
     word: {
       id: q.id || `${word}-${correct}`,
       word,
-      meaning_vi: correct,
+      meaning_vi: correct, // đây là text đáp án đúng, KHÔNG phải chữ cái
     },
-    options: shuffle(options),
+    options: shuffle(options), // options đã được bóc prefix bởi parseOpts
   };
 }
 
@@ -920,7 +934,10 @@ function TimedTestPart({ words, onDone, onFinishLesson, isLastLesson, topicId, s
     questions.forEach(q => {
       const chosen = (answers[q.word.id] || '').toString().trim().toLowerCase();
       const expected = (q.word.meaning_vi || '').toString().trim().toLowerCase();
-      if (chosen && chosen === expected) correctCount++;
+      // Bóc prefix nếu học sinh chọn option còn prefix
+      const chosenClean = chosen.replace(/^[a-d][.)]\s*/i, '');
+      const expectedClean = expected.replace(/^[a-d][.)]\s*/i, '');
+      if (chosenClean && chosenClean === expectedClean) correctCount++;
     });
     setScore({
       correct: correctCount,

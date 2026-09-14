@@ -372,9 +372,14 @@ function UploadWordModal({ open, onClose, teacherId, topicId, topicTitle, onSave
 
 // Component chọn nguồn câu hỏi — đặt bên ngoài VocabularyPage
 function QbSourceSelector({ teacherId, uploads }) {
-  const [selectedIds, setSelectedIds] = useState([]); // [] = tất cả
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [questions, setQuestions]     = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [editQ, setEditQ]             = useState(null);
+  const [editSaving, setEditSaving]   = useState(false);
+  const [deleteId, setDeleteId]       = useState(null);
+
+  const DIFF_LABEL_LOCAL = { nhan_biet: 'Nhận biết', van_dung: 'Vận dụng', van_dung_cao: 'Vận dụng cao' };
 
   const toggleId = (id) => {
     setSelectedIds(prev =>
@@ -382,11 +387,16 @@ function QbSourceSelector({ teacherId, uploads }) {
     );
   };
 
-  const handlePreview = async () => {
+  // Auto-load khi vào (load tất cả)
+  useEffect(() => {
+    if (uploads.length > 0) handlePreview([]);
+  }, []); // chỉ chạy lần đầu
+
+  const handlePreview = async (ids) => {
     setLoading(true);
     try {
       const qs = await questionBankService.getQuestions(teacherId, 'vocab', {
-        selectedUploadIds: selectedIds,
+        selectedUploadIds: ids,
       });
       setQuestions(qs);
     } catch (e) {
@@ -396,14 +406,39 @@ function QbSourceSelector({ teacherId, uploads }) {
     }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editQ) return;
+    setEditSaving(true);
+    try {
+      await questionBankService.updateQuestion(editQ.id, editQ);
+      setQuestions(qs => qs.map(q => q.id === editQ.id ? { ...q, ...editQ } : q));
+      setEditQ(null);
+    } catch (e) {
+      alert('Lưu thất bại: ' + e.message);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await questionBankService.deleteQuestion(id);
+      setQuestions(qs => qs.filter(q => q.id !== id));
+      setDeleteId(null);
+    } catch (e) {
+      alert('Xóa thất bại: ' + e.message);
+    }
+  };
+
   return (
-    <div style={{ borderTop: '1px solid var(--t-border)', paddingTop: 12, marginBottom: 12 }}>
+    <div style={{ borderTop: '1px solid var(--t-border)', paddingTop: 14, marginTop: 4 }}>
+      {/* Bộ lọc theo file */}
       <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-muted)', margin: '0 0 8px' }}>
-        CHỌN TỪ NGUỒN ĐỂ XEM / ÔN TẬP
+        LỌC THEO FILE
       </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
         <button
-          onClick={() => setSelectedIds([])}
+          onClick={() => { setSelectedIds([]); handlePreview([]); }}
           style={{
             padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             border: `2px solid ${selectedIds.length === 0 ? 'var(--t-primary)' : 'var(--t-border)'}`,
@@ -412,12 +447,18 @@ function QbSourceSelector({ teacherId, uploads }) {
             fontFamily: 'inherit',
           }}
         >
-          Tổng tất cả ({uploads.reduce((s, u) => s + u.question_count, 0)} câu)
+          Tất cả ({uploads.reduce((s, u) => s + u.question_count, 0)} câu)
         </button>
         {uploads.map(u => (
           <button
             key={u.id}
-            onClick={() => toggleId(u.id)}
+            onClick={() => {
+              const next = selectedIds.includes(u.id)
+                ? selectedIds.filter(x => x !== u.id)
+                : [...selectedIds, u.id];
+              setSelectedIds(next);
+              handlePreview(next);
+            }}
             style={{
               padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               border: `2px solid ${selectedIds.includes(u.id) ? 'var(--t-primary)' : 'var(--t-border)'}`,
@@ -430,17 +471,168 @@ function QbSourceSelector({ teacherId, uploads }) {
           </button>
         ))}
       </div>
-      <button
-        onClick={handlePreview}
-        disabled={loading}
-        style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: '#566B58', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-      >
-        {loading ? 'Đang tải...' : `👁️ Xem ${selectedIds.length === 0 ? 'tất cả' : selectedIds.length + ' file'}`}
-      </button>
-      {questions.length > 0 && (
-        <p style={{ fontSize: 12, color: 'var(--t-muted)', marginTop: 6 }}>
-          Đang hiển thị {questions.length} câu hỏi
-        </p>
+
+      {/* Danh sách câu hỏi */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t-muted)', fontSize: 14 }}>
+          Đang tải câu hỏi...
+        </div>
+      ) : questions.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t-muted)', fontSize: 14 }}>
+          Không có câu hỏi nào.
+        </div>
+      ) : (
+        <>
+          <p style={{ fontSize: 12, color: 'var(--t-muted)', margin: '0 0 10px' }}>
+            Hiển thị <b>{questions.length}</b> câu hỏi
+          </p>
+          <div style={{ maxHeight: 480, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {questions.map((q, i) => (
+              <div key={q.id} style={{
+                background: 'var(--t-hover)', borderRadius: 10,
+                padding: '12px 14px', border: '1px solid var(--t-border)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 13, flex: 1 }}>
+                    {i + 1}. {q.question}
+                  </p>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      className="t-btn t-btn-sm"
+                      onClick={() => setEditQ({ ...q })}
+                      title="Sửa"
+                    >✏️</button>
+                    <button
+                      className="t-btn t-btn-sm t-btn-danger t-btn-icon"
+                      onClick={() => setDeleteId(q.id)}
+                      title="Xóa"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                        <path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {Array.isArray(q.options) && q.options.length > 0 && (
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
+                    {q.options.map((opt, j) => (
+                      <span key={j} style={{
+                        fontSize: 12, padding: '2px 9px', borderRadius: 20,
+                        background: opt === q.correct ? '#EDF3ED' : '#F5EDE0',
+                        border: `1px solid ${opt === q.correct ? '#A7C5A9' : '#E0D3C0'}`,
+                        color: opt === q.correct ? '#2E7D32' : '#4A3F35',
+                        fontWeight: opt === q.correct ? 700 : 400,
+                      }}>
+                        {opt === q.correct ? '✓ ' : ''}{opt}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(!Array.isArray(q.options) || q.options.length === 0) && q.correct && (
+                  <p style={{ fontSize: 12, color: '#2E7D32', margin: '5px 0 0', fontWeight: 600 }}>
+                    Đáp án: {q.correct}
+                  </p>
+                )}
+
+                <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
+                  <span className="badge badge-lav" style={{ fontSize: 10.5 }}>{q.question_type}</span>
+                  {q.difficulty && (
+                    <span className="badge badge-pink" style={{ fontSize: 10.5 }}>
+                      {DIFF_LABEL_LOCAL[q.difficulty] || q.difficulty}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Modal sửa */}
+      {editQ && (
+        <div className="t-modal-overlay" onClick={e => e.target === e.currentTarget && setEditQ(null)}>
+          <div className="t-modal" style={{ maxWidth: 520 }}>
+            <h3>✏️ Sửa câu hỏi</h3>
+            <div className="t-field">
+              <label>Câu hỏi *</label>
+              <textarea
+                rows={3}
+                value={editQ.question}
+                onChange={e => setEditQ(q => ({ ...q, question: e.target.value }))}
+              />
+            </div>
+            {editQ.question_type === 'multiple_choice' && (
+              <>
+                <div className="t-field">
+                  <label>Các đáp án (mỗi dòng)</label>
+                  <textarea
+                    rows={4}
+                    value={Array.isArray(editQ.options) ? editQ.options.join('\n') : ''}
+                    onChange={e => setEditQ(q => ({
+                      ...q,
+                      options: e.target.value.split('\n').map(s => s.trim()).filter(Boolean),
+                    }))}
+                  />
+                </div>
+                <div className="t-field">
+                  <label>Đáp án đúng *</label>
+                  <select
+                    value={editQ.correct}
+                    onChange={e => setEditQ(q => ({ ...q, correct: e.target.value }))}
+                  >
+                    <option value="">-- Chọn --</option>
+                    {(Array.isArray(editQ.options) ? editQ.options : [])
+                      .filter(o => o.trim())
+                      .map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
+            {editQ.question_type !== 'multiple_choice' && (
+              <div className="t-field">
+                <label>Đáp án đúng *</label>
+                <input
+                  type="text"
+                  value={editQ.correct}
+                  onChange={e => setEditQ(q => ({ ...q, correct: e.target.value }))}
+                />
+              </div>
+            )}
+            <div className="t-field">
+              <label>Giải thích</label>
+              <textarea
+                rows={2}
+                value={editQ.explanation || ''}
+                onChange={e => setEditQ(q => ({ ...q, explanation: e.target.value }))}
+              />
+            </div>
+            <div className="t-modal-foot">
+              <button className="t-btn" onClick={() => setEditQ(null)}>Hủy</button>
+              <button
+                className="t-btn t-btn-primary"
+                onClick={handleSaveEdit}
+                disabled={editSaving}
+              >
+                {editSaving ? 'Đang lưu...' : '💾 Lưu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm xóa */}
+      {deleteId && (
+        <div className="t-modal-overlay" onClick={() => setDeleteId(null)}>
+          <div className="t-modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <h3>🗑️ Xóa câu hỏi?</h3>
+            <p style={{ fontSize: 14, color: 'var(--t-muted)' }}>Không thể hoàn tác.</p>
+            <div className="t-modal-foot">
+              <button className="t-btn" onClick={() => setDeleteId(null)}>Hủy</button>
+              <button className="t-btn t-btn-danger" onClick={() => handleDelete(deleteId)}>Xóa</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -481,6 +673,14 @@ export const VocabularyPage = () => {
   const [assignEx4SelectedId, setAssignEx4SelectedId] = useState('');
   const [assignEx4Saving, setAssignEx4Saving] = useState(false);
   const [topicEx4Map, setTopicEx4Map] = useState({});             // { topicId → uploadId }
+  // CHỦ ĐỀ (topic_tag) cho ngân hàng câu hỏi
+  const [qbTopicTags, setQbTopicTags] = useState([]);
+  const [qbSelectedTag, setQbSelectedTag] = useState('');         // '' = tất cả
+  const [qbUploadTopicTag, setQbUploadTopicTag] = useState('');   // chủ đề cho batch mới
+  const [editTagId, setEditTagId] = useState(null);
+  const [editTagValue, setEditTagValue] = useState('');
+  const [assignEx4SelectedTag, setAssignEx4SelectedTag] = useState('');
+  const [assignBtSelectedTag, setAssignBtSelectedTag] = useState('');
 
   useEffect(() => {
     if (teacherId) {
@@ -545,13 +745,24 @@ export const VocabularyPage = () => {
 
   const loadQbUploads = async () => {
     try {
-      const uploads = await questionBankService.getUploads(teacherId, 'vocab');
+      const [uploads, tags] = await Promise.all([
+        questionBankService.getUploads(teacherId, 'vocab'),
+        questionBankService.getTopicTags(teacherId, 'vocab'),
+      ]);
       setQbUploads(uploads);
+      setQbTopicTags(tags);
     } catch (e) { console.error('QB load failed:', e); }
+  };
+
+  const loadQbTopicTags = async () => {
+    try {
+      setQbTopicTags(await questionBankService.getTopicTags(teacherId, 'vocab'));
+    } catch (e) { console.error('QB tags load failed:', e); }
   };
 
   const handleQbUpload = async (questions) => {
     if (!qbUploadLabel.trim()) { alert('Vui lòng nhập tên batch.'); return; }
+    if (!qbUploadTopicTag.trim()) { alert('Vui lòng nhập chủ đề (topic) cho batch.'); return; }
     if (!qbUploadFile) { alert('Vui lòng chọn file.'); return; }
     setQbUploading(true);
     try {
@@ -563,6 +774,7 @@ export const VocabularyPage = () => {
         subjectType: 'vocab',
         topicRefId: null,
         uploadLabel: qbUploadLabel.trim(),
+        topicTag: qbUploadTopicTag.trim() || null,
         questions,
         fileUrl, // truyền thêm fileUrl để lưu vào ngân hàng
       });
@@ -583,6 +795,7 @@ export const VocabularyPage = () => {
       setQbUploadLabel('');
       setQbUploadQuestions([]);
       setQbUploadFile(null);
+      setQbUploadTopicTag('');
     } catch (e) {
       alert('Upload thất bại: ' + e.message);
     } finally {
@@ -600,6 +813,23 @@ export const VocabularyPage = () => {
     }
   };
 
+  const handleSaveTopicTag = async (uploadId) => {
+    try {
+      await questionBankService.updateTopicTag(uploadId, editTagValue);
+      setEditTagId(null);
+      setEditTagValue('');
+      await loadQbUploads();
+      await loadQbTopicTags();
+    } catch (e) {
+      alert('Lưu chủ đề thất bại: ' + e.message);
+    }
+  };
+
+  // Bộ lọc theo chủ đề
+  const filteredQbUploads = qbUploads.filter(u =>
+    !qbSelectedTag || u.topic_tag === qbSelectedTag
+  );
+
   // Load danh sách assignment hiện tại cho tất cả topics
   const loadTopicAssignments = async () => {
     try {
@@ -614,9 +844,14 @@ export const VocabularyPage = () => {
   const handleOpenAssignBt = async (item) => {
     setAssignBtTarget(item);
     setAssignBtSelectedId(topicAssignmentMap[item.id] || '');
+    setAssignBtSelectedTag('');
     try {
-      const uploads = await questionBankService.getUploads(teacherId, 'vocab');
+      const [uploads, tags] = await Promise.all([
+        questionBankService.getUploads(teacherId, 'vocab'),
+        questionBankService.getTopicTags(teacherId, 'vocab'),
+      ]);
       setAssignBtUploads(uploads);
+      setQbTopicTags(tags);
     } catch (e) { alert('Không tải được ngân hàng: ' + e.message); }
   };
 
@@ -649,9 +884,14 @@ export const VocabularyPage = () => {
   const handleOpenAssignEx4 = async (item) => {
     setAssignEx4Target(item);
     setAssignEx4SelectedId(topicEx4Map[item.id] || '');
+    setAssignEx4SelectedTag('');
     try {
-      const uploads = await questionBankService.getUploads(teacherId, 'vocab');
+      const [uploads, tags] = await Promise.all([
+        questionBankService.getUploads(teacherId, 'vocab'),
+        questionBankService.getTopicTags(teacherId, 'vocab'),
+      ]);
       setAssignEx4Uploads(uploads);
+      setQbTopicTags(tags);
     } catch (e) { alert('Không tải được ngân hàng: ' + e.message); }
   };
 
@@ -852,19 +1092,39 @@ export const VocabularyPage = () => {
                 ⚠️ Chưa có file nào trong ngân hàng câu hỏi. Hãy upload vào "Ngân hàng câu hỏi" trước.
               </p>
             ) : (
-              <div className="t-field">
-                <label>Chọn file bài tập vận dụng *</label>
-                <select
-                  value={assignEx4SelectedId}
-                  onChange={e => setAssignEx4SelectedId(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
-                >
-                  <option value="">— Không gán —</option>
-                  {assignEx4Uploads.map(u => (
-                    <option key={u.id} value={u.id}>{u.upload_label} ({u.question_count} câu)</option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="t-field">
+                  <label>1. Chọn chủ đề</label>
+                  <select
+                    value={assignEx4SelectedTag}
+                    onChange={e => { setAssignEx4SelectedTag(e.target.value); setAssignEx4SelectedId(''); }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
+                  >
+                    <option value="">— Chọn chủ đề —</option>
+                    {qbTopicTags.map(tag => (
+                      <option key={tag} value={tag}>{tag} ({assignEx4Uploads.filter(u => u.topic_tag === tag).length} file)</option>
+                    ))}
+                    {assignEx4Uploads.some(u => !u.topic_tag) && (
+                      <option value="__no_tag__">Chưa có chủ đề ({assignEx4Uploads.filter(u => !u.topic_tag).length} file)</option>
+                    )}
+                  </select>
+                </div>
+                <div className="t-field">
+                  <label>2. Chọn file bài tập vận dụng *</label>
+                  <select
+                    value={assignEx4SelectedId}
+                    onChange={e => setAssignEx4SelectedId(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
+                  >
+                    <option value="">— Không gán —</option>
+                    {assignEx4Uploads
+                      .filter(u => assignEx4SelectedTag === '__no_tag__' ? !u.topic_tag : !assignEx4SelectedTag || u.topic_tag === assignEx4SelectedTag)
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.upload_label} ({u.question_count} câu)</option>
+                      ))}
+                  </select>
+                </div>
+              </>
             )}
 
             <div className="t-modal-foot">
@@ -919,18 +1179,77 @@ export const VocabularyPage = () => {
           <div className="t-modal" style={{ maxWidth: 600 }}>
             <h3>📋 Ngân hàng câu hỏi từ vựng</h3>
 
+            {/* Bộ lọc theo chủ đề */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              <button
+                onClick={() => setQbSelectedTag('')}
+                style={{
+                  padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: `2px solid ${qbSelectedTag === '' ? 'var(--t-primary)' : 'var(--t-border)'}`,
+                  background: qbSelectedTag === '' ? 'var(--t-primary)' : '#fff',
+                  color: qbSelectedTag === '' ? '#fff' : 'var(--t-ink)',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Tất cả ({qbUploads.length})
+              </button>
+              {qbTopicTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setQbSelectedTag(v => v === tag ? '' : tag)}
+                  style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: `2px solid ${qbSelectedTag === tag ? 'var(--t-primary)' : 'var(--t-border)'}`,
+                    background: qbSelectedTag === tag ? 'var(--t-primary)' : '#fff',
+                    color: qbSelectedTag === tag ? '#fff' : 'var(--t-ink)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  📁 {tag} ({qbUploads.filter(u => u.topic_tag === tag).length})
+                </button>
+              ))}
+            </div>
+
             {/* Danh sách các lần upload */}
             <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-muted)', margin: '0 0 8px' }}>
               CÁC LẦN UPLOAD ({qbUploads.length})
             </p>
             {qbUploads.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--t-muted)', margin: '0 0 16px' }}>Chưa có lần upload nào.</p>
+            ) : filteredQbUploads.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--t-muted)', margin: '0 0 16px' }}>Không có file nào trong chủ đề này.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-                {qbUploads.map(u => (
+                {filteredQbUploads.map(u => (
                   <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--t-hover)', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
-                    <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <p style={{ margin: 0, fontWeight: 600 }}>{u.upload_label}</p>
+                      {editTagId === u.id ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <input
+                            type="text"
+                            value={editTagValue}
+                            list="topicTagList"
+                            onChange={e => setEditTagValue(e.target.value)}
+                            style={{ width: 130, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--t-border)', fontSize: 12, fontFamily: 'inherit' }}
+                          />
+                          <button className="t-btn t-btn-sm" onClick={() => handleSaveTopicTag(u.id)} style={{ padding: '2px 10px', fontSize: 12 }}>✓</button>
+                          <button className="t-btn t-btn-sm" onClick={() => { setEditTagId(null); setEditTagValue(''); }} style={{ padding: '2px 10px', fontSize: 12 }}>✕</button>
+                        </span>
+                      ) : (
+                        <span
+                          onClick={() => { setEditTagId(u.id); setEditTagValue(u.topic_tag || ''); }}
+                          title="Nhấn để sửa chủ đề"
+                          style={{
+                            background: u.topic_tag ? 'var(--t-lav-50)' : '#EFE9E1',
+                            color: u.topic_tag ? '#5F73C4' : '#8A8270',
+                            borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600,
+                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
+                          }}
+                        >
+                          {u.topic_tag ? `📁 ${u.topic_tag}` : '➕ thêm chủ đề'}
+                        </span>
+                      )}
                       <p style={{ margin: 0, fontSize: 11, color: 'var(--t-muted)' }}>{u.question_count} câu · {new Date(u.created_at).toLocaleDateString('vi-VN')}</p>
                     </div>
                     <button className="t-btn t-btn-sm t-btn-danger t-btn-icon" onClick={() => handleQbDeleteUpload(u.id)}>
@@ -945,7 +1264,7 @@ export const VocabularyPage = () => {
 
             {/* Chọn từ nguồn — preview câu hỏi */}
             {qbUploads.length > 0 && (
-              <QbSourceSelector teacherId={teacherId} uploads={qbUploads} />
+              <QbSourceSelector teacherId={teacherId} uploads={filteredQbUploads.length > 0 ? filteredQbUploads : qbUploads} />
             )}
 
             <div style={{ borderTop: '1px solid var(--t-border)', paddingTop: 12 }}>
@@ -954,6 +1273,25 @@ export const VocabularyPage = () => {
                 <label>Tên batch *</label>
                 <input type="text" value={qbUploadLabel} onChange={e => setQbUploadLabel(e.target.value)} placeholder="VD: File 1 - Unit 1" />
               </div>
+              <div className="t-field">
+                <label>Chủ đề (topic) *</label>
+                <input
+                  type="text"
+                  value={qbUploadTopicTag}
+                  list="topicTagList"
+                  onChange={e => setQbUploadTopicTag(e.target.value)}
+                  placeholder="VD: Animals / Unit 1 / Từ chỉ hành động..."
+                />
+                {qbTopicTags.length > 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--t-muted)', marginTop: 4 }}>
+                    Có thể chọn từ danh sách: {qbTopicTags.slice(0, 5).join(', ')}
+                    {qbTopicTags.length > 5 ? `... (+${qbTopicTags.length - 5})` : ''}
+                  </p>
+                )}
+              </div>
+              <datalist id="topicTagList">
+                {qbTopicTags.map(tag => <option key={tag} value={tag} />)}
+              </datalist>
               <div className="t-field">
                 <label>Upload file câu hỏi (.docx)</label>
                 <input type="file" accept=".docx" onChange={async (e) => {
@@ -975,8 +1313,8 @@ export const VocabularyPage = () => {
             </div>
 
             <div className="t-modal-foot">
-              <button className="t-btn" onClick={() => { setShowQbUpload(false); setQbUploadLabel(''); setQbUploadQuestions([]); setQbUploadFile(null); }}>Đóng</button>
-              <button className="t-btn t-btn-primary" onClick={() => handleQbUpload(qbUploadQuestions)} disabled={qbUploading || !qbUploadLabel.trim() || qbUploadQuestions.length === 0}>
+              <button className="t-btn" onClick={() => { setShowQbUpload(false); setQbUploadLabel(''); setQbUploadQuestions([]); setQbUploadFile(null); setQbUploadTopicTag(''); setQbSelectedTag(''); }}>Đóng</button>
+              <button className="t-btn t-btn-primary" onClick={() => handleQbUpload(qbUploadQuestions)} disabled={qbUploading || !qbUploadLabel.trim() || !qbUploadTopicTag.trim() || qbUploadQuestions.length === 0}>
                 {qbUploading ? 'Đang lưu...' : `Lưu ${qbUploadQuestions.length} câu`}
               </button>
             </div>
@@ -998,19 +1336,39 @@ export const VocabularyPage = () => {
                 ⚠️ Chưa có file nào trong ngân hàng câu hỏi. Hãy upload vào "Ngân hàng câu hỏi" trước.
               </p>
             ) : (
-              <div className="t-field">
-                <label>Chọn file bài tập *</label>
-                <select
-                  value={assignBtSelectedId}
-                  onChange={e => setAssignBtSelectedId(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
-                >
-                  <option value="">— Không gán (học tự do) —</option>
-                  {assignBtUploads.map(u => (
-                    <option key={u.id} value={u.id}>{u.upload_label} ({u.question_count} câu)</option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="t-field">
+                  <label>1. Chọn chủ đề</label>
+                  <select
+                    value={assignBtSelectedTag}
+                    onChange={e => { setAssignBtSelectedTag(e.target.value); setAssignBtSelectedId(''); }}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
+                  >
+                    <option value="">— Chọn chủ đề —</option>
+                    {qbTopicTags.map(tag => (
+                      <option key={tag} value={tag}>{tag} ({assignBtUploads.filter(u => u.topic_tag === tag).length} file)</option>
+                    ))}
+                    {assignBtUploads.some(u => !u.topic_tag) && (
+                      <option value="__no_tag__">Chưa có chủ đề ({assignBtUploads.filter(u => !u.topic_tag).length} file)</option>
+                    )}
+                  </select>
+                </div>
+                <div className="t-field">
+                  <label>2. Chọn file bài tập *</label>
+                  <select
+                    value={assignBtSelectedId}
+                    onChange={e => setAssignBtSelectedId(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
+                  >
+                    <option value="">— Không gán (học tự do) —</option>
+                    {assignBtUploads
+                      .filter(u => assignBtSelectedTag === '__no_tag__' ? !u.topic_tag : !assignBtSelectedTag || u.topic_tag === assignBtSelectedTag)
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.upload_label} ({u.question_count} câu)</option>
+                      ))}
+                  </select>
+                </div>
+              </>
             )}
 
             <div className="t-modal-foot">

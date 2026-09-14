@@ -137,4 +137,125 @@ export const dashboardService = {
 
     return results;
   },
+
+  // Ma trận học sinh × bài tập cho dashboard giáo viên (theo thiết kế dashboard.html)
+  async getStudentAssignmentMatrix(teacherId) {
+    // 1. Lớp của giáo viên
+    const { data: teacherClasses, error: classErr } = await supabase
+      .from('classes')
+      .select('id, name')
+      .eq('teacher_id', teacherId);
+    if (classErr) throw classErr;
+    const classIds = (teacherClasses || []).map((c) => c.id);
+    if (classIds.length === 0) return [];
+
+    // 2. Assignments trong các lớp đó (kèm tên lớp)
+    const { data: assignments, error: aErr } = await supabase
+      .from('assignments')
+      .select('id, title, deadline, class_id, classes!class_id ( name )')
+      .in('class_id', classIds);
+    if (aErr) throw aErr;
+    const assignmentMap = new Map((assignments || []).map(a => [a.id, a]));
+    const assignmentIds = (assignments || []).map(a => a.id);
+
+    // 3. Lấy toàn bộ học sinh trong các lớp (kể cả chưa nộp bài)
+    const classNameMap = new Map((teacherClasses || []).map(c => [c.id, c.name]));
+    const { data: classStudents, error: csErr } = await supabase
+      .from('class_students')
+      .select('student_id, class_id, student:profiles!student_id ( id, full_name )')
+      .in('class_id', classIds);
+    if (csErr) throw csErr;
+
+    // Khởi tạo studentMap với TẤT CẢ học sinh, assignments rỗng
+    const studentMap = new Map();
+    for (const cs of classStudents || []) {
+      const sid = cs.student_id;
+      if (!studentMap.has(sid)) {
+        studentMap.set(sid, {
+          id: sid,
+          name: cs.student?.full_name || 'Học sinh',
+          class: classNameMap.get(cs.class_id) || '',
+          classId: cs.class_id,          // thêm để filter lớp sau này
+          assignments: [],
+        });
+      }
+    }
+
+    // 4. Attempts (giữ nguyên logic cũ)
+    if (assignmentIds.length > 0) {
+      const { data: attempts, error: tErr } = await supabase
+        .from('assignment_attempts')
+        .select(`
+          id, score, passed, duration_seconds, completed_at,
+          student_id, assignment_id, reset_count,
+          student:profiles!student_id ( id, full_name )
+        `)
+        .in('assignment_id', assignmentIds)
+        .order('completed_at', { ascending: false })
+        .limit(2000);
+      if (tErr) throw tErr;
+
+      for (const a of attempts || []) {
+        const sid = a.student_id;
+        const assignment = assignmentMap.get(a.assignment_id);
+        // Học sinh ngoài lớp (edge case) — bỏ qua
+        if (!studentMap.has(sid)) continue;
+        const student = studentMap.get(sid);
+        const existing = student.assignments.find(x => x.id === a.assignment_id);
+        if (!existing) {
+          // Bỏ qua bài chưa có completed_at (học sinh chưa nộp)
+          if (!a.completed_at) continue;
+
+          const status = a.passed
+            ? 'hoan_thanh'
+            : (a.score !== null && a.score !== undefined && a.score < 80)
+              ? 'chua_dat'
+              : 'chua_lam';
+          student.assignments.push({
+            id: a.assignment_id,
+            title: assignment?.title || 'Bài tập',
+            date: a.completed_at,
+            status,
+            score: a.score,
+            duration: a.duration_seconds ? Math.round(a.duration_seconds / 60) : null,
+            resetCount: a.reset_count ?? 0,
+          });
+        }
+      }
+    }
+
+    // Lấy streak từ DB cho tất cả học sinh trong matrix
+    const allStudentIds = [...studentMap.keys()];
+    if (allStudentIds.length > 0) {
+      const { data: streaks } = await supabase
+        .from('streaks')
+        .select('student_id, current_streak, longest_streak')
+        .in('student_id', allStudentIds);
+      (streaks || []).forEach(s => {
+        const student = studentMap.get(s.student_id);
+        if (student) {
+          student.currentStreak = s.current_streak ?? 0;
+          student.longestStreak = s.longest_streak ?? 0;
+        }
+      });
+    }
+    // Đảm bảo học sinh không có record streak vẫn có giá trị mặc định
+    // Tổng hợp reset_count từ tất cả assignments
+    for (const student of studentMap.values()) {
+      if (student.currentStreak === undefined) student.currentStreak = 0;
+      if (student.longestStreak === undefined) student.longestStreak = 0;
+      student.totalResets = student.assignments.reduce((sum, a) => sum + (a.resetCount ?? 0), 0);
+    }
+
+    return Array.from(studentMap.values());
+  },
+
+  // Hàm tính tier cho một học sinh
+  computeStudentTier(student) {
+    const total = student.assignments.length;
+    if (total === 0) return 'red';
+    const notGood = student.assignments.filter(a => a.status !== 'hoan_thanh').length;
+    const pct = (notGood / total) * 100;
+    return pct <= 10 ? 'green' : pct <= 50 ? 'yellow' : 'red';
+  },
 };

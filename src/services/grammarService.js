@@ -152,6 +152,43 @@ export const grammarService = {
     if (error) throw error;
     return { ...data, options: _parseOptions(data.options) };
   },
+
+  // Xem câu hỏi trong một upload ngân hàng
+  async getUploadQuestions(uploadId) {
+    const { data, error } = await supabase
+      .from('question_bank_items')
+      .select('id, question, options, correct, question_type, difficulty, hint, explanation, sort_order')
+      .eq('upload_id', uploadId)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Sửa một câu hỏi ngân hàng
+  async updateQuestion(questionId, updates) {
+    const { error } = await supabase
+      .from('question_bank_items')
+      .update({
+        question:      updates.question,
+        options:       updates.options || null,
+        correct:       updates.correct,
+        question_type: updates.question_type,
+        difficulty:    updates.difficulty || null,
+        hint:          updates.hint || null,
+        explanation:   updates.explanation || null,
+      })
+      .eq('id', questionId);
+    if (error) throw error;
+  },
+
+  // Xóa một câu hỏi ngân hàng
+  async deleteQuestion(questionId) {
+    const { error } = await supabase
+      .from('question_bank_items')
+      .delete()
+      .eq('id', questionId);
+    if (error) throw error;
+  },
 };
 
 function _parseOptions(raw) {
