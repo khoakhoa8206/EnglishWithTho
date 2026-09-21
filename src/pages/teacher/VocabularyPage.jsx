@@ -1,6 +1,6 @@
 // src/pages/teacher/VocabularyPage.jsx
 import React, { useEffect, useState } from 'react';
-import { vocabularyService } from '../../services/vocabularyService';
+import { vocabularyService, ASSIGN_ALL_FILES } from '../../services/vocabularyService';
 import { convertDocxToHtml, convertDocxToText, parseVocabExerciseHtml } from '../../services/docxParserService';
 import { aiVocabularyService } from '../../services/ai/aiService';
 import { questionBankService } from '../../services/questionBankService';
@@ -661,6 +661,9 @@ export const VocabularyPage = () => {
   const [qbUploadQuestions, setQbUploadQuestions] = useState([]);
   const [qbUploading, setQbUploading] = useState(false);
   const [qbUploadFile, setQbUploadFile] = useState(null); // lưu file object để upload Storage
+  // Tự động nhập đáp án hàng loạt sau khi parse file
+  const [showBulkAnswerInput, setShowBulkAnswerInput] = useState(false);
+  const [bulkAnswerText, setBulkAnswerText] = useState('');
   // State cho modal gán bài tập vào chủ đề
   const [assignBtTarget, setAssignBtTarget] = useState(null); // { id, title }
   const [assignBtUploads, setAssignBtUploads] = useState([]); // danh sách upload trong ngân hàng
@@ -796,11 +799,35 @@ export const VocabularyPage = () => {
       setQbUploadQuestions([]);
       setQbUploadFile(null);
       setQbUploadTopicTag('');
+      setShowBulkAnswerInput(false);
+      setBulkAnswerText('');
     } catch (e) {
       alert('Upload thất bại: ' + e.message);
     } finally {
       setQbUploading(false);
     }
+  };
+
+  // Nhập đáp án hàng loạt: "1. B", "2) C", "3 - D", "1->B" → gán q.correct theo option
+  const applyBulkAnswers = () => {
+    const map = {};
+    const lineRe = /(\d{1,3})\s*[.:\-\)\->]*\s*([A-Da-d])\s*$/;
+    bulkAnswerText.split('\n').forEach(raw => {
+      const line = raw.trim();
+      const m = line.match(lineRe);
+      if (m) map[Number(m[1])] = m[2].toUpperCase();
+    });
+    setQbUploadQuestions(prev => prev.map(q => {
+      const letter = map[q.number];
+      if (!letter) return q;
+      const matched = q.options.find(opt =>
+        opt.startsWith(letter + '.') || opt.startsWith(letter + ')') || opt.startsWith('(' + letter + ')')
+      );
+      if (matched) return { ...q, correct: matched };
+      return { ...q, correct: letter };
+    }));
+    setShowBulkAnswerInput(false);
+    setBulkAnswerText('');
   };
 
   const handleQbDeleteUpload = async (uploadId) => {
@@ -1116,7 +1143,10 @@ export const VocabularyPage = () => {
                     onChange={e => setAssignEx4SelectedId(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
                   >
-                    <option value="">— Không gán —</option>
+                    <option value="">— Không gán (không có bài tập) —</option>
+                    <option value={ASSIGN_ALL_FILES}>
+                      🎲 Tất cả file ({assignEx4Uploads.length} file · random câu hỏi)
+                    </option>
                     {assignEx4Uploads
                       .filter(u => assignEx4SelectedTag === '__no_tag__' ? !u.topic_tag : !assignEx4SelectedTag || u.topic_tag === assignEx4SelectedTag)
                       .map(u => (
@@ -1309,11 +1339,38 @@ export const VocabularyPage = () => {
                 {qbUploadQuestions.length > 0 && (
                   <p style={{ fontSize: 12, color: '#2E7D32', marginTop: 4 }}>✅ {qbUploadQuestions.length} câu hỏi đã sẵn sàng.</p>
                 )}
+                {qbUploadQuestions.length > 0 && qbUploadQuestions.some(q => !q.correct) && (
+                  <div style={{ fontSize: 12, color: '#B7791F', background: '#FFF8E6', border: '1px solid #F5D88B', borderRadius: 8, padding: '8px 10px', marginTop: 6 }}>
+                    ⚠️ {qbUploadQuestions.filter(q => !q.correct).length} câu chưa có đáp án đúng (không ai trả lời đúng khi chấm).
+                    <button
+                      type="button"
+                      className="t-btn t-btn-sm"
+                      style={{ marginLeft: 8 }}
+                      onClick={() => setShowBulkAnswerInput(v => !v)}
+                    >
+                      {showBulkAnswerInput ? 'Ẩn' : 'Nhập đáp án hàng loạt'}
+                    </button>
+                    {showBulkAnswerInput && (
+                      <div style={{ marginTop: 8 }}>
+                        <textarea
+                          rows={4}
+                          value={bulkAnswerText}
+                          onChange={e => setBulkAnswerText(e.target.value)}
+                          placeholder="Mỗi dòng: số câu + đáp án (VD: 1. B / 2. C)"
+                          style={{ width: '100%', boxSizing: 'border-box', padding: 8, borderRadius: 6, border: '1px solid var(--t-border)', fontSize: 13, fontFamily: 'monospace' }}
+                        />
+                        <button type="button" className="t-btn t-btn-primary" style={{ marginTop: 6 }} onClick={applyBulkAnswers} disabled={!bulkAnswerText.trim()}>
+                          Áp dụng đáp án
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="t-modal-foot">
-              <button className="t-btn" onClick={() => { setShowQbUpload(false); setQbUploadLabel(''); setQbUploadQuestions([]); setQbUploadFile(null); setQbUploadTopicTag(''); setQbSelectedTag(''); }}>Đóng</button>
+              <button className="t-btn" onClick={() => { setShowQbUpload(false); setQbUploadLabel(''); setQbUploadQuestions([]); setQbUploadFile(null); setQbUploadTopicTag(''); setQbSelectedTag(''); setShowBulkAnswerInput(false); setBulkAnswerText(''); }}>Đóng</button>
               <button className="t-btn t-btn-primary" onClick={() => handleQbUpload(qbUploadQuestions)} disabled={qbUploading || !qbUploadLabel.trim() || !qbUploadTopicTag.trim() || qbUploadQuestions.length === 0}>
                 {qbUploading ? 'Đang lưu...' : `Lưu ${qbUploadQuestions.length} câu`}
               </button>
@@ -1360,7 +1417,10 @@ export const VocabularyPage = () => {
                     onChange={e => setAssignBtSelectedId(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
                   >
-                    <option value="">— Không gán (học tự do) —</option>
+                    <option value="">— Không gán (không có bài tập) —</option>
+                    <option value={ASSIGN_ALL_FILES}>
+                      🎲 Tất cả file ({assignBtUploads.length} file · random câu hỏi)
+                    </option>
                     {assignBtUploads
                       .filter(u => assignBtSelectedTag === '__no_tag__' ? !u.topic_tag : !assignBtSelectedTag || u.topic_tag === assignBtSelectedTag)
                       .map(u => (

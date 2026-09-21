@@ -24,6 +24,12 @@ const NAV_ITEMS = [
       <rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 14h4M14 14h4"/>
     </svg>
   )},
+  { to: TEACHER_ROUTES.STREAK_MANAGER, label: 'Quản lý Streak', icon: (
+    <svg className={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+      <path d="M12 6v6l4 2"/>
+    </svg>
+  )},
   { to: TEACHER_ROUTES.ASSIGNMENTS, label: 'Quản lý bài tập', icon: (
     <svg className={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>

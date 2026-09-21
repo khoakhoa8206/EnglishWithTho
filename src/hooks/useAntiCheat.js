@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const MAX_VIOLATIONS = 5; // Số lần out trước khi bị reset
+const MAX_VIOLATIONS = 3; // Số lần out trước khi bị reset
 
 export function useAntiCheat({ active, onReset, onViolation }) {
   // active: boolean — chỉ bật khi học sinh đang thực sự làm bài (phase = 'part4_doing')

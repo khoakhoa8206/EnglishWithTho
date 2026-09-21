@@ -493,6 +493,13 @@ async getById(assignmentId) {
           student_id: studentId, current_streak: 1,
           longest_streak: 1, last_active_date: today,
         });
+        // Ghi log ngày hoạt động để giáo viên có thể xem/khôi phục streak
+        await supabase
+          .from('streak_activity_log')
+          .upsert(
+            { student_id: studentId, activity_date: today, source: 'system' },
+            { onConflict: 'student_id,activity_date' }
+          );
         return;
       }
 
@@ -509,6 +516,14 @@ async getById(assignmentId) {
         longest_streak:   Math.max(newStreak, streak.current_streak),
         last_active_date: today,
       }).eq('id', streak.id);
+
+      // Ghi log ngày hoạt động để giáo viên có thể xem/khôi phục streak
+      await supabase
+        .from('streak_activity_log')
+        .upsert(
+          { student_id: studentId, activity_date: today, source: 'system' },
+          { onConflict: 'student_id,activity_date' }
+        );
     } catch (e) {
       console.error('Streak update failed:', e);
     }

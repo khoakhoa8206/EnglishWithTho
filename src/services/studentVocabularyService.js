@@ -1,5 +1,15 @@
 // src/services/studentVocabularyService.js
 import { supabase } from '../lib/supabase';
+import { ASSIGN_ALL_FILES } from './vocabularyService';
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 export const studentVocabularyService = {
   async getVocabularySets(studentId) {
@@ -57,18 +67,31 @@ export const studentVocabularyService = {
     if (!uploadId) return [];
 
     // 3. Lấy câu hỏi từ question_bank_items
-    const { data: items, error: e2 } = await supabase
+    let q = supabase
       .from('question_bank_items')
-      .select('id, question, options, correct, question_type, hint, sort_order')
-      .eq('upload_id', uploadId)
-      .order('sort_order', { ascending: true });
+      .select('id, question, options, correct, question_type, hint, sort_order');
+
+    if (uploadId === ASSIGN_ALL_FILES) {
+      // __ALL__ → lấy tất cả câu hỏi của teacher (random câu hỏi từ mọi file)
+      const { data: topicRow, error: trErr } = await supabase
+        .from('vocab_topics')
+        .select('teacher_id')
+        .eq('id', topicId)
+        .maybeSingle();
+      if (trErr) throw trErr;
+      if (topicRow?.teacher_id) q = q.eq('teacher_id', topicRow.teacher_id);
+    } else {
+      q = q.eq('upload_id', uploadId);
+    }
+
+    const { data: items, error: e2 } = await q.order('sort_order', { ascending: true });
     if (e2) throw e2;
 
     // 4. Trả về dạng tương thích với code hiện tại
     return [{
       id: uploadId,
       title: 'Bài tập 4',
-      questions: items || [],
+      questions: uploadId === ASSIGN_ALL_FILES ? shuffleArray(items || []) : (items || []),
       created_at: new Date().toISOString(),
     }];
   },

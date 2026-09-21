@@ -13,6 +13,7 @@ import StudentLayout from '@/layouts/StudentLayout';
 import DashboardPage from '@/pages/teacher/DashboardPage';
 import StudentsPage from '@/pages/teacher/StudentsPage';
 import TuitionPage from '@/pages/teacher/TuitionPage';
+import StreakManagerPage from '@/pages/teacher/StreakManagerPage';
 import AssignmentsPage from '@/pages/teacher/AssignmentsPage';
 import VocabularyPage from '@/pages/teacher/VocabularyPage';
 import GrammarPage from '@/pages/teacher/GrammarPage';
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="tuition" element={<TuitionPage />} />
+          <Route path="streak-manager" element={<StreakManagerPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="vocabulary" element={<VocabularyPage />} />
           <Route path="grammar" element={<GrammarPage />} />

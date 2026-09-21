@@ -1,6 +1,9 @@
 // src/services/vocabularyService.js
 import { supabase } from '../lib/supabase';
 
+// Giá trị đặc biệt: gán tất cả file (random câu hỏi từ mọi file trong ngân hàng)
+export const ASSIGN_ALL_FILES = '__ALL__';
+
 export const vocabularyService = {
   async getVocabularySets(teacherId) {
     const { data, error } = await supabase
@@ -220,7 +223,7 @@ export const vocabularyService = {
   // Gán hoặc bỏ gán bài tập cho một topic
   async saveTopicAssignment(teacherId, topicId, uploadId) {
     if (!uploadId) {
-      // Bỏ gán: xóa record nếu có
+      // Bỏ gán hoàn toàn: xóa record
       await supabase
         .from('vocab_topic_assignments')
         .delete()
@@ -228,7 +231,9 @@ export const vocabularyService = {
         .eq('topic_id', topicId);
       return;
     }
-    // Upsert
+    // uploadId = '__ALL__' → gán tất cả file; uploadId = UUID → gán file cụ thể
+    // Cột upload_id là TEXT hoặc UUID; với '__ALL__' cần lưu dạng TEXT
+    // Nếu DB đang là UUID type, cần thêm cột riêng hoặc đổi kiểu cột (xem lưu ý bên dưới)
     const { error } = await supabase
       .from('vocab_topic_assignments')
       .upsert(

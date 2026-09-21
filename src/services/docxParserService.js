@@ -330,16 +330,21 @@ export function extractAnswerKey(html) {
 
   let answerSectionStart = -1;
 
-  // Pattern mở rộng: case-insensitive + ĐÁP ÁN viết hoa/thường
-  const headerPattern = /(?:answer\s*key|answers?|key|đáp\s*án)[\s:：]*/gi;
-  // Pattern riêng cho ĐÁP ÁN viết hoa (Unicode normalize)
-  const viPattern = /ĐÁP\s*ÁN[\s:：]*/g;
+  // Pattern mở rộng: case-insensitive + ĐÁP ÁN viết hoa/thường + không dấu
+  const headerPattern = /(?:answer\s*key|answers?|key|đáp\s*án|dap\s*an|đápán|dapan|keys?)[\s:：]*/gi;
+  // Pattern riêng cho ĐÁP ÁN viết hoa cách nhau bởi khoảng trắng chống Unicode
+  const viPattern = /[Đđ]\s*[ÁAÀẢÃẠáàảãạ]\s*[Pp]\s*[ÁAÀẢÃẠáàảãạ]\s*[Nn][\s:：]*/g;
+  // Pattern thường - chữ: "đáp án", "đápán", "dap an", "dapán" không dấu
+  const viPatternLower = /(?:đáp\s*án|đápán|dap\s*an|dapán)[\s:：]*/gi;
 
   let m;
   while ((m = headerPattern.exec(normalizedText)) !== null) {
     answerSectionStart = m.index + m[0].length;
   }
   while ((m = viPattern.exec(fullText)) !== null) {
+    answerSectionStart = m.index + m[0].length;
+  }
+  while ((m = viPatternLower.exec(normalizedText)) !== null) {
     answerSectionStart = m.index + m[0].length;
   }
 
@@ -370,10 +375,22 @@ function _parseAnswerBlock(text) {
     return answers;
   }
 
-  // Pattern 1: MC — chỉ chữ HOA A/B/C/D, không match chữ thường
-  const letterPattern = /(?:\(?\s*(\d{1,3})\s*[.):\-]?\s*\)?\s*)([A-D])(?![a-zA-Z])/g;
+  // Pattern 1a: MC — chữ HOA A/B/C/D sau số, dấu tùy ý (.), (:), (-), không dấu
+  const letterPattern = /(?:\(?\s*(\d{1,3})\s*[.):\-]?\s*\)?\s*)([A-Da-d])[.)：:]?(?![a-zA-Z])/g;
   while ((m = letterPattern.exec(text)) !== null) {
-    if (!answers[m[1]]) answers[m[1]] = m[2];
+    if (!answers[m[1]]) answers[m[1]] = m[2].toUpperCase();
+  }
+
+  // Pattern 1b: "1 -> B" / "1 - B" / "1: B" (số rồi đến 1 chữ, cách bởi dấu )
+  const arrowPattern = /(\d{1,3})\s*(?:->|=>|→|−|-|:|-)\s*([A-Da-d])[.)：:]?(?!\w)/g;
+  while ((m = arrowPattern.exec(text)) !== null) {
+    if (!answers[m[1]]) answers[m[1]] = m[2].toUpperCase();
+  }
+
+  // Pattern 1c: "1 A" hoặc "1.A" — số và chữ không có dấu phân tách
+  const spacedPattern = /(\d{1,3})\.?\s+([A-Da-d])(?![a-zA-Z])/g;
+  while ((m = spacedPattern.exec(text)) !== null) {
+    if (!answers[m[1]]) answers[m[1]] = m[2].toUpperCase();
   }
 
   // Pattern 2: double-space separator (bỏ \s*$ để tránh nuốt hết text single-space)
@@ -408,10 +425,24 @@ export function parseVocabExerciseHtml(html) {
   return questions.map(q => {
     const ans = answerKey[String(q.number)];
     if (ans && q.options.length > 0) {
-      const matched = q.options.find(opt =>
-        opt.startsWith(ans + '.') || opt.startsWith(ans + ')')
-      );
-      if (matched) return { ...q, correct: matched };
+      const letter = String(ans).trim().replace(/[.)：:]$/, '').toUpperCase();
+      // 1. Khớp theo chữ cái đầu của option: "A. ..." / "A) ..." / "(A) ..."
+      if (/^[A-D]$/.test(letter)) {
+        const matched = q.options.find(opt =>
+          opt.startsWith(letter + '.') || opt.startsWith(letter + ')')
+          || opt.startsWith('(' + letter + ')') || opt.startsWith('(' + letter + '.')
+        );
+        if (matched) return { ...q, correct: matched };
+      }
+      // 2. Fallback: so nội dung option chứa đáp án full text
+      const ansLower = String(ans).trim().toLowerCase();
+      const textMatch = q.options.find(opt => {
+        const optText = opt.replace(/^\(?[A-Da-d]\)?[.)]\s*/, '').toLowerCase();
+        return optText === ansLower || optText.includes(ansLower);
+      });
+      if (textMatch) return { ...q, correct: textMatch };
+      // 3. Không khớp → để null (hiển thị cảnh báo để gv sửa tay)
+      return { ...q, correct: null };
     }
     return q;
   });

@@ -3,7 +3,7 @@
 
 import React from 'react';
 
-const MAX_VIOLATIONS = 5;
+const MAX_VIOLATIONS = 3;
 
 export default function AntiCheatWarning({ violationCount, isResetting, onDismiss }) {
   if (!violationCount) return null;
