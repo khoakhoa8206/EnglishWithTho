@@ -1,6 +1,8 @@
 // src/pages/teacher/VocabularyPage.jsx
 import React, { useEffect, useState } from 'react';
-import { vocabularyService, ASSIGN_ALL_FILES } from '../../services/vocabularyService';
+import {
+  vocabularyService, ASSIGN_ALL_FILES, NO_TOPIC_TAG, encodeAssignAllInTag, parseAssignAllInTag,
+} from '../../services/vocabularyService';
 import { convertDocxToHtml, convertDocxToText, parseVocabExerciseHtml } from '../../services/docxParserService';
 import { aiVocabularyService } from '../../services/ai/aiService';
 import { questionBankService } from '../../services/questionBankService';
@@ -10,6 +12,26 @@ import { fileArchiveService } from '../../services/fileArchiveService';
 import FileArchiveDrawer from '../../components/common/FileArchiveDrawer';
 // BUG 6: import thêm
 import VocabPart4Preview from '@/components/vocabulary/VocabPart4Preview';
+
+// Giá trị <option> "🎲 Tất cả file trong chủ đề" — khi lưu mới đổi thành encodeAssignAllInTag(...)
+const ALL_IN_TAG_OPTION = '__all_in_tag__';
+
+const uploadsInTag = (uploads, tag) =>
+  uploads.filter(u => (tag === NO_TOPIC_TAG ? !u.topic_tag : u.topic_tag === tag));
+
+// Giá trị đã lưu → { tag, selectedId } cho 2 ô select trong modal gán bài
+const assignValueToForm = (value) => {
+  const allInTag = parseAssignAllInTag(value);
+  return allInTag
+    ? { tag: allInTag.tag, selectedId: ALL_IN_TAG_OPTION }
+    : { tag: '', selectedId: value || '' };
+};
+
+// Giá trị trong form → giá trị lưu vào DB (null = bỏ gán)
+const formToAssignValue = (selectedId, tag, uploads) =>
+  selectedId === ALL_IN_TAG_OPTION
+    ? encodeAssignAllInTag(tag, uploadsInTag(uploads, tag).map(u => u.id))
+    : selectedId || null;
 
 // ─── Modal tạo topic ──────────────────────────────────────────────────────────
 function CreateSetModal({ open, onClose, onSave }) {
@@ -139,11 +161,12 @@ function UploadWordModal({ open, onClose, teacherId, topicId, topicTitle, onSave
     if (!text) { setError('Không có nội dung để phân tích.'); return; }
     setPhase('extracting'); setError('');
     try {
-      const parsed = await aiVocabularyService.extractVocabulary(text);
+      const { words: parsed, warning } = await aiVocabularyService.extractVocabulary(text);
       if (!Array.isArray(parsed) || parsed.length === 0) {
         throw new Error('AI không tìm thấy từ vựng nào trong tài liệu.');
       }
       setWords(parsed.map((w, i) => ({ ...w, _id: i, _keep: true })));
+      setError(warning);
       setPhase('review');
     } catch (e) {
       setError('AI trích xuất thất bại: ' + e.message);
@@ -869,9 +892,10 @@ export const VocabularyPage = () => {
 
   // Mở modal gán bài tập
   const handleOpenAssignBt = async (item) => {
+    const form = assignValueToForm(topicAssignmentMap[item.id]);
     setAssignBtTarget(item);
-    setAssignBtSelectedId(topicAssignmentMap[item.id] || '');
-    setAssignBtSelectedTag('');
+    setAssignBtSelectedId(form.selectedId);
+    setAssignBtSelectedTag(form.tag);
     try {
       const [uploads, tags] = await Promise.all([
         questionBankService.getUploads(teacherId, 'vocab'),
@@ -887,7 +911,9 @@ export const VocabularyPage = () => {
     if (!assignBtTarget) return;
     setAssignBtSaving(true);
     try {
-      await vocabularyService.saveTopicAssignment(teacherId, assignBtTarget.id, assignBtSelectedId || null);
+      await vocabularyService.saveTopicAssignment(
+        teacherId, assignBtTarget.id, formToAssignValue(assignBtSelectedId, assignBtSelectedTag, assignBtUploads),
+      );
       await loadTopicAssignments();
       setAssignBtTarget(null);
     } catch (e) {
@@ -909,9 +935,10 @@ export const VocabularyPage = () => {
 
   // Mở modal gán Bài 4
   const handleOpenAssignEx4 = async (item) => {
+    const form = assignValueToForm(topicEx4Map[item.id]);
     setAssignEx4Target(item);
-    setAssignEx4SelectedId(topicEx4Map[item.id] || '');
-    setAssignEx4SelectedTag('');
+    setAssignEx4SelectedId(form.selectedId);
+    setAssignEx4SelectedTag(form.tag);
     try {
       const [uploads, tags] = await Promise.all([
         questionBankService.getUploads(teacherId, 'vocab'),
@@ -927,7 +954,9 @@ export const VocabularyPage = () => {
     if (!assignEx4Target) return;
     setAssignEx4Saving(true);
     try {
-      await vocabularyService.saveTopicEx4Assignment(teacherId, assignEx4Target.id, assignEx4SelectedId || null);
+      await vocabularyService.saveTopicEx4Assignment(
+        teacherId, assignEx4Target.id, formToAssignValue(assignEx4SelectedId, assignEx4SelectedTag, assignEx4Uploads),
+      );
       await loadTopicEx4Assignments();
       setAssignEx4Target(null);
     } catch (e) {
@@ -1144,9 +1173,14 @@ export const VocabularyPage = () => {
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
                   >
                     <option value="">— Không gán (không có bài tập) —</option>
-                    <option value={ASSIGN_ALL_FILES}>
-                      🎲 Tất cả file ({assignEx4Uploads.length} file · random câu hỏi)
-                    </option>
+                    {assignEx4SelectedTag && (
+                      <option value={ALL_IN_TAG_OPTION}>
+                        🎲 Tất cả file trong chủ đề ({uploadsInTag(assignEx4Uploads, assignEx4SelectedTag).length} file · random câu hỏi)
+                      </option>
+                    )}
+                    {assignEx4SelectedId === ASSIGN_ALL_FILES && (
+                      <option value={ASSIGN_ALL_FILES}>🎲 Tất cả file của mọi chủ đề (cách gán cũ)</option>
+                    )}
                     {assignEx4Uploads
                       .filter(u => assignEx4SelectedTag === '__no_tag__' ? !u.topic_tag : !assignEx4SelectedTag || u.topic_tag === assignEx4SelectedTag)
                       .map(u => (
@@ -1418,9 +1452,14 @@ export const VocabularyPage = () => {
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--t-border)', fontSize: 14, fontFamily: 'inherit' }}
                   >
                     <option value="">— Không gán (không có bài tập) —</option>
-                    <option value={ASSIGN_ALL_FILES}>
-                      🎲 Tất cả file ({assignBtUploads.length} file · random câu hỏi)
-                    </option>
+                    {assignBtSelectedTag && (
+                      <option value={ALL_IN_TAG_OPTION}>
+                        🎲 Tất cả file trong chủ đề ({uploadsInTag(assignBtUploads, assignBtSelectedTag).length} file · random câu hỏi)
+                      </option>
+                    )}
+                    {assignBtSelectedId === ASSIGN_ALL_FILES && (
+                      <option value={ASSIGN_ALL_FILES}>🎲 Tất cả file của mọi chủ đề (cách gán cũ)</option>
+                    )}
                     {assignBtUploads
                       .filter(u => assignBtSelectedTag === '__no_tag__' ? !u.topic_tag : !assignBtSelectedTag || u.topic_tag === assignBtSelectedTag)
                       .map(u => (

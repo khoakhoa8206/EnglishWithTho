@@ -1,6 +1,6 @@
 // src/services/studentVocabularyService.js
 import { supabase } from '../lib/supabase';
-import { ASSIGN_ALL_FILES } from './vocabularyService';
+import { ASSIGN_ALL_FILES, NO_TOPIC_TAG, parseAssignAllInTag } from './vocabularyService';
 
 function shuffleArray(arr) {
   const a = [...arr];
@@ -71,15 +71,38 @@ export const studentVocabularyService = {
       .from('question_bank_items')
       .select('id, question, options, correct, question_type, hint, sort_order');
 
-    if (uploadId === ASSIGN_ALL_FILES) {
-      // __ALL__ → lấy tất cả câu hỏi của teacher (random câu hỏi từ mọi file)
+    const allInTag = parseAssignAllInTag(uploadId);
+    const isRandom = uploadId === ASSIGN_ALL_FILES || !!allInTag;
+
+    if (isRandom) {
       const { data: topicRow, error: trErr } = await supabase
         .from('vocab_topics')
         .select('teacher_id')
         .eq('id', topicId)
         .maybeSingle();
       if (trErr) throw trErr;
-      if (topicRow?.teacher_id) q = q.eq('teacher_id', topicRow.teacher_id);
+      const teacherId = topicRow?.teacher_id;
+
+      if (allInTag) {
+        // Random câu hỏi từ các file trong chủ đề — ưu tiên danh sách file hiện tại
+        // (gồm cả file thêm sau khi gán), không đọc được thì dùng danh sách lúc gán
+        let uploadIds = allInTag.uploadIds;
+        if (teacherId) {
+          let uq = supabase
+            .from('question_bank_uploads')
+            .select('id')
+            .eq('teacher_id', teacherId)
+            .eq('subject_type', 'vocab');
+          uq = allInTag.tag === NO_TOPIC_TAG ? uq.is('topic_tag', null) : uq.eq('topic_tag', allInTag.tag);
+          const { data: uploads } = await uq;
+          if (uploads?.length) uploadIds = uploads.map(u => u.id);
+        }
+        if (uploadIds.length === 0) return [];
+        q = q.in('upload_id', uploadIds);
+      } else if (teacherId) {
+        // __ALL__ (cách gán cũ) → lấy tất cả câu hỏi của teacher (random câu hỏi từ mọi file)
+        q = q.eq('teacher_id', teacherId);
+      }
     } else {
       q = q.eq('upload_id', uploadId);
     }
@@ -91,7 +114,7 @@ export const studentVocabularyService = {
     return [{
       id: uploadId,
       title: 'Bài tập 4',
-      questions: uploadId === ASSIGN_ALL_FILES ? shuffleArray(items || []) : (items || []),
+      questions: isRandom ? shuffleArray(items || []) : (items || []),
       created_at: new Date().toISOString(),
     }];
   },

@@ -12,9 +12,23 @@ async function callAI(prompt, maxTokens = 2000, retries = 3) {
       return data?.content || '';
     }
 
-    const errMsg = error?.message || data?.error || '';
+    // supabase-js chỉ báo "non-2xx status code" — đọc body để lấy lỗi thật từ Edge Function
+    let errMsg = data?.error || error?.message || '';
+    if (error?.context && typeof error.context.json === 'function') {
+      try {
+        const body = await error.context.json();
+        if (body?.error) errMsg = `${body.error} (HTTP ${error.context.status})`;
+      } catch (_) {
+        errMsg = `${errMsg} (HTTP ${error.context.status})`;
+      }
+    }
+    // Hết quota (Gemini free tier: 20 request/ngày) — retry vô ích
+    if (errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.toLowerCase().includes('exceeded your current quota')) {
+      throw new Error('Đã hết lượt dùng AI miễn phí của Gemini (giới hạn số lần gọi mỗi ngày). Vui lòng thử lại sau hoặc nâng cấp gói Gemini API.');
+    }
+
     const is503 =
-      errMsg.includes('503') ||
+      /\b503\b/.test(errMsg) ||
       errMsg.toLowerCase().includes('high demand') ||
       errMsg.toLowerCase().includes('overloaded');
 
@@ -83,9 +97,44 @@ function repairTruncatedArray(str) {
   return s.slice(0, lastClose + 1) + ']';
 }
 
+/**
+ * Chia text thành ít đoạn nhất có thể (~maxChars mỗi đoạn), độ dài đều nhau,
+ * cắt theo dòng để không làm đứt 1 từ vựng.
+ */
+function splitIntoChunks(text, maxChars) {
+  const count = Math.max(1, Math.ceil(text.length / maxChars));
+  const chunks = Array.from({ length: count }, () => []);
+  let offset = 0;
+  for (const line of text.split('\n')) {
+    // Xếp dòng vào đoạn theo vị trí của nó trong tài liệu
+    chunks[Math.min(count - 1, Math.floor((offset * count) / text.length))].push(line);
+    offset += line.length + 1;
+  }
+  return chunks.map(lines => lines.join('\n')).filter(chunk => chunk.trim());
+}
+
+// Edge Function bị Supabase kill sau 150s (HTTP 546), Gemini mất ~2s/từ → mỗi request
+// ≤ ~30 từ. Nhưng Gemini free tier chỉ cho 20 request/ngày → không chia nhỏ hơn mức cần.
+const VOCAB_CHUNK_CHARS = 1500;
+
 // ─── Vocabulary extraction ────────────────────────────────────────────────────
 export const aiVocabularyService = {
+  /** Trả về { words, warning } — warning khác rỗng khi có đoạn bị lỗi (kết quả thiếu). */
   async extractVocabulary(text) {
+    const chunks = splitIntoChunks(text.slice(0, 4000), VOCAB_CHUNK_CHARS);
+    const results = await Promise.allSettled(chunks.map(chunk => this.extractVocabularyChunk(chunk)));
+
+    const failed = results.filter(r => r.status === 'rejected');
+    if (failed.length === results.length) throw failed[0].reason;
+    const warning = failed.length
+      ? `Chỉ trích xuất được ${results.length - failed.length}/${results.length} phần tài liệu, danh sách bị thiếu từ. Lỗi: ${failed[0].reason?.message}`
+      : '';
+
+    const words = results.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
+    return { words, warning };
+  },
+
+  async extractVocabularyChunk(text) {
     const prompt = `Extract English vocabulary WORDS from the document below.
 
 STRICT RULES:

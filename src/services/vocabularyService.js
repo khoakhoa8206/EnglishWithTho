@@ -1,8 +1,22 @@
 // src/services/vocabularyService.js
 import { supabase } from '../lib/supabase';
 
-// Giá trị đặc biệt: gán tất cả file (random câu hỏi từ mọi file trong ngân hàng)
+// Giá trị đặc biệt (cũ): gán tất cả file (random câu hỏi từ mọi file trong ngân hàng)
 export const ASSIGN_ALL_FILES = '__ALL__';
+// topic_tag giả cho các file chưa có chủ đề
+export const NO_TOPIC_TAG = '__no_tag__';
+
+// Gán "tất cả file trong 1 chủ đề": `__ALL__|<uploadId,uploadId,…>|<topic_tag>`.
+// uploadIds là danh sách file lúc gán — dự phòng khi học sinh không đọc được question_bank_uploads.
+export function encodeAssignAllInTag(tag, uploadIds) {
+  return `${ASSIGN_ALL_FILES}|${uploadIds.join(',')}|${tag}`;
+}
+
+export function parseAssignAllInTag(value) {
+  if (typeof value !== 'string' || !value.startsWith(`${ASSIGN_ALL_FILES}|`)) return null;
+  const [, ids, ...tagParts] = value.split('|');
+  return { tag: tagParts.join('|'), uploadIds: ids ? ids.split(',') : [] };
+}
 
 export const vocabularyService = {
   async getVocabularySets(teacherId) {
@@ -231,9 +245,8 @@ export const vocabularyService = {
         .eq('topic_id', topicId);
       return;
     }
-    // uploadId = '__ALL__' → gán tất cả file; uploadId = UUID → gán file cụ thể
-    // Cột upload_id là TEXT hoặc UUID; với '__ALL__' cần lưu dạng TEXT
-    // Nếu DB đang là UUID type, cần thêm cột riêng hoặc đổi kiểu cột (xem lưu ý bên dưới)
+    // uploadId = encodeAssignAllInTag(...) → random tất cả file trong 1 chủ đề; UUID → gán file cụ thể
+    // Cột upload_id là TEXT (migration 017) nên lưu được giá trị đặc biệt
     const { error } = await supabase
       .from('vocab_topic_assignments')
       .upsert(

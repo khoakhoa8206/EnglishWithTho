@@ -1,6 +1,10 @@
 ﻿import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
+// Key dự phòng: khi key trước hết quota (HTTP 429) thì tự chuyển sang key sau
+const GEMINI_API_KEYS = [
+  Deno.env.get('GEMINI_API_KEY'),
+  Deno.env.get('GEMINI_API_KEY_2'),
+].filter((key): key is string => !!key);
 const GEMINI_MODEL = 'gemini-3.5-flash';
 const GEMINI_BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
@@ -9,8 +13,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function callGemini(prompt: string, max_tokens: number, attempt = 1): Promise<string> {
-  const url = `${GEMINI_BASE_URL}?key=${GEMINI_API_KEY}`;
+async function callGemini(prompt: string, max_tokens: number, attempt = 1, keyIndex = 0): Promise<string> {
+  const url = `${GEMINI_BASE_URL}?key=${GEMINI_API_KEYS[keyIndex]}`;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -28,7 +32,12 @@ async function callGemini(prompt: string, max_tokens: number, attempt = 1): Prom
   if (res.status === 503 && attempt <= 3) {
     console.warn(`Gemini 503 — Retry ${attempt}/3...`);
     await new Promise((r) => setTimeout(r, attempt * 2000));
-    return callGemini(prompt, max_tokens, attempt + 1);
+    return callGemini(prompt, max_tokens, attempt + 1, keyIndex);
+  }
+
+  if (res.status === 429 && keyIndex + 1 < GEMINI_API_KEYS.length) {
+    console.warn(`Gemini 429 với key #${keyIndex + 1} — chuyển sang key #${keyIndex + 2}`);
+    return callGemini(prompt, max_tokens, 1, keyIndex + 1);
   }
 
   if (!res.ok) {
@@ -47,7 +56,7 @@ serve(async (req) => {
   }
 
   try {
-    if (!GEMINI_API_KEY) {
+    if (GEMINI_API_KEYS.length === 0) {
       return new Response(
         JSON.stringify({ error: 'GEMINI_API_KEY chưa được cấu hình' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
