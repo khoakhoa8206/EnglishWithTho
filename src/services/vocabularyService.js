@@ -151,39 +151,44 @@ export const vocabularyService = {
     return urlData.publicUrl;
   },
 
+  // Trả về { inserted, skipped }. DB chỉ có unique index biểu thức (topic_id, lower(trim(word)))
+  // nên upsert onConflict không dùng được, và insert cả lô sẽ bị huỷ toàn bộ nếu có 1 từ trùng
+  // → lọc trùng ở client trước khi insert.
   async bulkInsertWords(topicId, words) {
-    if (!words || words.length === 0) return;
+    if (!words || words.length === 0) return { inserted: 0, skipped: 0 };
 
-    const payload = words.map((w, idx) => ({
-      topic_id:       topicId,
-      word:           w.word.trim(),
-      part_of_speech: w.part_of_speech || null,
-      ipa:            w.ipa            || null,
-      meaning_vi:     w.meaning_vi.trim(),
-      example:        w.example        || null,
-      sort_order:     idx,
-    }));
-
-    // Dùng upsert với onConflict (yêu cầu unique constraint vocabularies_topic_word_unique trên DB)
-    const { error } = await supabase
+    const { data: existing, error: exErr } = await supabase
       .from('vocabularies')
-      .upsert(payload, {
-        onConflict: 'topic_id,word',
-        ignoreDuplicates: true,
-      });
+      .select('word, sort_order')
+      .eq('topic_id', topicId);
+    if (exErr) throw exErr;
 
-    if (error) {
-      // Fallback: nếu constraint chưa có, dùng insert và bỏ qua lỗi duplicate
-      if (error.message?.includes('no unique or exclusion constraint')) {
-        const { error: insertError } = await supabase
-          .from('vocabularies')
-          .insert(payload);
-        // Bỏ qua lỗi unique violation (23505) — từ trùng sẽ không được thêm
-        if (insertError && insertError.code !== '23505') throw insertError;
-        return;
-      }
-      throw error;
+    const key = (w) => String(w || '').trim().toLowerCase();
+    const seen = new Set((existing || []).map(r => key(r.word)));
+    let nextOrder = (existing || []).reduce((max, r) => Math.max(max, r.sort_order ?? -1), -1) + 1;
+
+    const payload = [];
+    for (const w of words) {
+      const k = key(w.word);
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      payload.push({
+        topic_id:       topicId,
+        word:           w.word.trim(),
+        part_of_speech: w.part_of_speech || null,
+        ipa:            w.ipa            || null,
+        meaning_vi:     w.meaning_vi.trim(),
+        example:        w.example        || null,
+        sort_order:     nextOrder++,
+      });
     }
+
+    const skipped = words.length - payload.length;
+    if (payload.length === 0) return { inserted: 0, skipped };
+
+    const { error } = await supabase.from('vocabularies').insert(payload);
+    if (error) throw error;
+    return { inserted: payload.length, skipped };
   },
 
   // ─── Vocab Bài 4 (bài tập vận dụng) ────────────────────────────────────────

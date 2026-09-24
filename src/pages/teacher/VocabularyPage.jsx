@@ -202,8 +202,8 @@ function UploadWordModal({ open, onClose, teacherId, topicId, topicTitle, onSave
     if (toSave.length === 0) { setError('Không có từ nào hợp lệ để lưu.'); return; }
     setPhase('saving');
     try {
-      await vocabularyService.bulkInsertWords(topicId, toSave);
-      onSaved(toSave.length);
+      const result = await vocabularyService.bulkInsertWords(topicId, toSave);
+      onSaved(result);
       onClose();
     } catch (e) {
       setError(e.message); setPhase('review');
@@ -1216,9 +1216,10 @@ export const VocabularyPage = () => {
           teacherId={teacherId}
           topicId={uploadTarget.id}
           topicTitle={uploadTarget.title}
-          onSaved={(count) => {
+          onSaved={({ inserted, skipped }) => {
             fetchSets();
-            alert(`✅ Đã lưu ${count} từ vựng vào bộ "${uploadTarget.title}"`);
+            alert(`✅ Đã lưu ${inserted} từ vựng mới vào bộ "${uploadTarget.title}"`
+              + (skipped ? `\n(Bỏ qua ${skipped} từ đã có sẵn trong bộ)` : ''));
           }}
         />
       )}
