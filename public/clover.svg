@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M33 34q6 12 16 22" fill="none" stroke="#B88400" stroke-width="4" stroke-linecap="round"/>
+  <g fill="#FFC21A" stroke="#B88400" stroke-width="2" stroke-linejoin="round">
+    <path id="leaf" d="M32 31C21 24 17 19 17 14a7.5 7.5 0 0 1 15-1 7.5 7.5 0 0 1 15 1c0 5-4 10-15 17z"/>
+    <use href="#leaf" transform="rotate(90 32 32)"/>
+    <use href="#leaf" transform="rotate(180 32 32)"/>
+    <use href="#leaf" transform="rotate(270 32 32)"/>
+  </g>
+</svg>
