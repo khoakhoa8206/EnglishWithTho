@@ -49,7 +49,11 @@ export const streakService = {
       .upsert(rows, { onConflict: 'student_id,activity_date' });
     if (insertError) throw insertError;
 
-    // 2. Lấy toàn bộ ngày đã có của học sinh để tính lại streak
+    return this.recalcStreak(studentId);
+  },
+
+  // Tính lại current_streak / longest_streak từ streak_activity_log rồi ghi vào bảng streaks
+  async recalcStreak(studentId) {
     const { data: allDays, error: fetchError } = await supabase
       .from('streak_activity_log')
       .select('activity_date')
@@ -58,38 +62,29 @@ export const streakService = {
     if (fetchError) throw fetchError;
 
     const sortedDates = (allDays || []).map(r => r.activity_date).sort();
+    const dateSet = new Set(sortedDates);
 
-    // 3. Tính current_streak (đếm từ hôm nay lùi dần liên tiếp)
-    const todayStr = new Date().toISOString().split('T')[0];
+    // current_streak: đếm lùi liên tiếp từ hôm nay (giờ địa phương).
+    // Hôm nay chưa học nhưng hôm qua có → chuỗi vẫn còn, đếm từ hôm qua (giống update_streak).
+    const now = new Date();
+    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    const checkDate = new Date(todayStr);
+    if (!dateSet.has(todayStr)) checkDate.setUTCDate(checkDate.getUTCDate() - 1);
     let currentStreak = 0;
-    let checkDate = new Date(todayStr);
-    while (true) {
-      const ds = checkDate.toISOString().split('T')[0];
-      if (sortedDates.includes(ds)) {
-        currentStreak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
+    while (dateSet.has(checkDate.toISOString().split('T')[0])) {
+      currentStreak++;
+      checkDate.setUTCDate(checkDate.getUTCDate() - 1);
     }
 
-    // 4. Tính longest_streak (chuỗi dài nhất bất kỳ)
+    // longest_streak: chuỗi dài nhất bất kỳ
     let longestStreak = 0;
     let runLength = 0;
     for (let i = 0; i < sortedDates.length; i++) {
-      if (i === 0) {
-        runLength = 1;
-      } else {
-        const prev = new Date(sortedDates[i - 1]);
-        const curr = new Date(sortedDates[i]);
-        const diffDays = Math.round((curr - prev) / 86400000);
-        runLength = diffDays === 1 ? runLength + 1 : 1;
-      }
+      const diffDays = i === 0 ? 0 : Math.round((new Date(sortedDates[i]) - new Date(sortedDates[i - 1])) / 86400000);
+      runLength = diffDays === 1 ? runLength + 1 : 1;
       if (runLength > longestStreak) longestStreak = runLength;
     }
 
-    // 5. Upsert vào bảng streaks
-    const lastActiveDate = sortedDates[sortedDates.length - 1] || todayStr;
     const { error: upsertError } = await supabase
       .from('streaks')
       .upsert(
@@ -97,7 +92,7 @@ export const streakService = {
           student_id: studentId,
           current_streak: currentStreak,
           longest_streak: longestStreak,
-          last_active_date: lastActiveDate,
+          last_active_date: sortedDates[sortedDates.length - 1] || null,
         },
         { onConflict: 'student_id' }
       );

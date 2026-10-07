@@ -117,15 +117,12 @@ export default function StreakManagerPage() {
       for (const dateStr of pendingRemove) {
         await streakService.removeStreakDay(selectedStudent.id, dateStr);
       }
-      // 2. Thêm các ngày mới
-      if (pendingAdd.size > 0) {
-        const result = await streakService.manualSetStreakDays(
-          selectedStudent.id,
-          Array.from(pendingAdd)
-        );
-        setSaveResult(result);
-      }
-      await loadDays(); // reload để hiện trạng thái mới
+      // 2. Thêm các ngày mới (tự tính lại streak), hoặc chỉ tính lại nếu chỉ có xóa
+      const result = pendingAdd.size > 0
+        ? await streakService.manualSetStreakDays(selectedStudent.id, Array.from(pendingAdd))
+        : await streakService.recalcStreak(selectedStudent.id);
+      await loadDays(); // reload để hiện trạng thái mới (loadDays reset saveResult)
+      setSaveResult(result);
     } catch (e) {
       alert('Lưu thất bại: ' + e.message);
     } finally {
