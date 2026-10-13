@@ -22,18 +22,13 @@ async function callAI(prompt, maxTokens = 2000, retries = 3) {
         errMsg = `${errMsg} (HTTP ${error.context.status})`;
       }
     }
-    // Hết quota (Gemini free tier: 20 request/ngày) — retry vô ích
-    if (errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.toLowerCase().includes('exceeded your current quota')) {
-      throw new Error('Đã hết lượt dùng AI miễn phí của Gemini (giới hạn số lần gọi mỗi ngày). Vui lòng thử lại sau hoặc nâng cấp gói Gemini API.');
-    }
-
     const is503 =
       /\b503\b/.test(errMsg) ||
       errMsg.toLowerCase().includes('high demand') ||
       errMsg.toLowerCase().includes('overloaded');
 
     if (is503 && attempt < retries) {
-      console.warn(`Gemini 503 — Retry ${attempt}/${retries} sau ${attempt * 2}s...`);
+      console.warn(`AI 503 — Retry ${attempt}/${retries} sau ${attempt * 2}s...`);
       await new Promise((res) => setTimeout(res, attempt * 2000));
       continue;
     }
@@ -113,8 +108,8 @@ function splitIntoChunks(text, maxChars) {
   return chunks.map(lines => lines.join('\n')).filter(chunk => chunk.trim());
 }
 
-// Edge Function bị Supabase kill sau 150s (HTTP 546), Gemini mất ~2s/từ → mỗi request
-// ≤ ~30 từ. Nhưng Gemini free tier chỉ cho 20 request/ngày → không chia nhỏ hơn mức cần.
+// Edge Function bị Supabase kill sau 150s (HTTP 546) → mỗi request ≤ ~30 từ.
+// OpenRouter free chỉ cho 50 request/ngày → không chia nhỏ hơn mức cần.
 const VOCAB_CHUNK_CHARS = 1500;
 
 // ─── Vocabulary extraction ────────────────────────────────────────────────────

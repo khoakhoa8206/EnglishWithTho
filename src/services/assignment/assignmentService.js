@@ -594,7 +594,7 @@ function _shuffle(arr) {
   return a;
 }
 
-/** Gemini đôi khi bọc JSON bằng markdown hoặc thêm phần mở đầu; chỉ giữ JSON array. */
+/** AI đôi khi bọc JSON bằng markdown hoặc thêm phần mở đầu; chỉ giữ JSON array. */
 function parseAiQuestionArray(content) {
   const clean = String(content).replace(/```(?:json)?\s*/gi, '').trim();
   const start = clean.indexOf('[');
