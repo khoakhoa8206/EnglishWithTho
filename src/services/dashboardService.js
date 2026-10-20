@@ -250,6 +250,21 @@ export const dashboardService = {
     return Array.from(studentMap.values());
   },
 
+  // Toàn bộ lịch sử làm bài của 1 học sinh (mọi lần làm, không gộp)
+  async getStudentAttemptHistory(studentId) {
+    const { data, error } = await supabase
+      .from('assignment_attempts')
+      .select(`
+        id, assignment_id, attempt_number, score, correct_count, total_questions,
+        started_at, completed_at, duration_seconds, passed, reset_count,
+        assignments ( title )
+      `)
+      .eq('student_id', studentId)
+      .order('completed_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
   // Hàm tính tier cho một học sinh
   computeStudentTier(student) {
     const total = student.assignments.length;

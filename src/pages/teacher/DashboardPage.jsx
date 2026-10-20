@@ -20,6 +20,66 @@ const TIER_META = {
   red:    { label: 'Cần can thiệp',   bar: '#A23B32', tint: '#FAEBE9', text: '#7C2C25', order: 2 },
 };
 
+// ponytail: ngưỡng cố định < 3 giây/câu là "nhanh bất thường", chỉnh nếu báo nhầm nhiều
+const FAST_SEC_PER_QUESTION = 3;
+
+const fmtDateTime = (iso) => iso
+  ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+  : '—';
+const fmtDuration = (sec) => sec == null ? '—' : `${Math.floor(sec / 60)}p${String(sec % 60).padStart(2, '0')}s`;
+
+const AttemptHistory = ({ rows }) => {
+  if (rows === 'loading' || rows === undefined) return <div style={{ color: '#8A8270', fontSize: 13 }}>Đang tải lịch sử làm bài...</div>;
+  if (rows === 'error') return <div style={{ color: '#A23B32', fontSize: 13 }}>Không tải được lịch sử làm bài.</div>;
+  if (rows.length === 0) return <div style={{ color: '#8A8270', fontSize: 13 }}>Học sinh chưa làm bài nào.</div>;
+
+  const totalByAssignment = {};
+  rows.forEach(r => { totalByAssignment[r.assignment_id] = (totalByAssignment[r.assignment_id] || 0) + 1; });
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: '#8A8270', marginBottom: 8 }}>
+        Tổng {rows.length} lần làm · {Object.keys(totalByAssignment).length} bài ·
+        <span style={{ color: '#A23B32' }}> dòng đỏ = làm nhanh bất thường (&lt; {FAST_SEC_PER_QUESTION}s/câu)</span>
+      </div>
+      <table className="t-table" style={{ fontSize: 13 }}>
+        <thead>
+          <tr>
+            <th>Bắt đầu</th>
+            <th>Nộp bài</th>
+            <th>Tên bài</th>
+            <th style={{ textAlign: 'center' }}>Lần làm</th>
+            <th style={{ textAlign: 'right' }}>Điểm</th>
+            <th style={{ textAlign: 'right' }}>Đúng</th>
+            <th style={{ textAlign: 'right' }}>Thời gian</th>
+            <th style={{ textAlign: 'right' }}>Reset</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => {
+            const fast = r.duration_seconds != null && r.total_questions > 0
+              && r.duration_seconds / r.total_questions < FAST_SEC_PER_QUESTION;
+            return (
+              <tr key={r.id} style={fast ? { background: '#FAEBE9' } : undefined}>
+                <td>{fmtDateTime(r.started_at)}</td>
+                <td>{fmtDateTime(r.completed_at)}</td>
+                <td>{r.assignments?.title || 'Bài tập'}</td>
+                <td style={{ textAlign: 'center' }}>{r.attempt_number}/{totalByAssignment[r.assignment_id]}</td>
+                <td style={{ textAlign: 'right', color: r.passed ? '#3F6B4F' : '#A6790A', fontWeight: 600 }}>{r.score != null ? `${r.score}%` : '—'}</td>
+                <td style={{ textAlign: 'right' }}>{r.correct_count}/{r.total_questions}</td>
+                <td style={{ textAlign: 'right', color: fast ? '#A23B32' : undefined, fontWeight: fast ? 700 : 400 }}>
+                  {fast && '⚠️ '}{fmtDuration(r.duration_seconds)}
+                </td>
+                <td style={{ textAlign: 'right', color: r.reset_count > 0 ? '#A23B32' : '#8A8270' }}>{r.reset_count > 0 ? `🚨 ${r.reset_count}` : '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </>
+  );
+};
+
 const DashboardPage = () => {
   const { profile } = useAuth();
   const teacherId = profile?.id;
@@ -33,7 +93,18 @@ const DashboardPage = () => {
   const [progressClassFilter, setProgressClassFilter] = useState('all');
   const [progressClasses, setProgressClasses]         = useState([]);
 
+  const [history, setHistory]       = useState({});       // studentId -> attempts[] | 'loading' | 'error'
+
   useEffect(() => { if (teacherId) fetchDashboardData(); }, [teacherId]);
+
+  const toggleStudent = (sid) => {
+    setExpandedId(id => id === sid ? null : sid);
+    if (Array.isArray(history[sid]) || history[sid] === 'loading') return;
+    setHistory(h => ({ ...h, [sid]: 'loading' }));
+    dashboardService.getStudentAttemptHistory(sid)
+      .then(rows => setHistory(h => ({ ...h, [sid]: rows })))
+      .catch(() => setHistory(h => ({ ...h, [sid]: 'error' })));
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -326,7 +397,7 @@ const DashboardPage = () => {
                     return (
                       <React.Fragment key={s.id}>
                         <tr
-                          onClick={() => setExpandedId(id => id === s.id ? null : s.id)}
+                          onClick={() => toggleStudent(s.id)}
                           style={{
                             background: meta.tint,
                             borderLeft: `4px solid ${meta.bar}`,
@@ -357,35 +428,9 @@ const DashboardPage = () => {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={10} style={{ padding: 0, background: '#fff' }}>
+                            <td colSpan={11} style={{ padding: 0, background: '#fff' }}>
                               <div style={{ padding: '12px 24px 16px 40px' }}>
-                                <table className="t-table" style={{ fontSize: 13 }}>
-                                  <thead>
-                                    <tr>
-                                      <th>Ngày nộp</th>
-                                      <th>Tên bài</th>
-                                      <th>Trạng thái</th>
-                                      <th style={{ textAlign: 'right' }}>Điểm</th>
-                                      <th style={{ textAlign: 'right' }}>Thời gian</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {[...s.assignments]
-                                      .sort((a, b) => new Date(b.date) - new Date(a.date))
-                                      .map((a, i) => {
-                                        const sm = STATUS_META[a.status] || { label: a.status, color: '#8A8270' };
-                                        return (
-                                          <tr key={i}>
-                                            <td>{a.date ? new Date(a.date).toLocaleDateString('vi-VN') : '—'}</td>
-                                            <td>{a.title}</td>
-                                            <td><span style={{ color: sm.color, fontWeight: 600 }}>{sm.label}</span></td>
-                                            <td style={{ textAlign: 'right' }}>{a.score != null ? `${a.score}%` : '—'}</td>
-                                            <td style={{ textAlign: 'right' }}>{a.duration != null ? `${a.duration} phút` : '—'}</td>
-                                          </tr>
-                                        );
-                                      })}
-                                  </tbody>
-                                </table>
+                                <AttemptHistory rows={history[s.id]} />
                               </div>
                             </td>
                           </tr>
